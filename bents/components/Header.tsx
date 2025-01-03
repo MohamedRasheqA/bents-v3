@@ -34,42 +34,44 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-black text-white p-4 shadow-md z-50">
-      <div className="flex items-center justify-between px-4 max-w-[2000px] mx-auto">
-        {/* Left side - Menu button and Logo */}
-        <div className="flex items-center">
-          <button
-            className="text-white focus:outline-none mr-4"
-            onClick={() => setIsMenuOpen(true)}
-          >
-            <Menu size={24} />
-          </button>
-          <Link href="/" className="flex items-center">
-            <Image
-              src="/bents-logo.jpg"
-              alt="Bent's Woodworking"
-              width={100}
-              height={50}
-              priority
-              className="max-h-12 w-auto object-contain"
-            />
-          </Link>
-        </div>
+    <header className="fixed top-0 left-0 right-0 bg-black text-white z-50">
+      <div className="container mx-auto">
+        <div className="flex items-center justify-between h-20 px-4">
+          {/* Left side - Menu button and Logo */}
+          <div className="flex items-center">
+            <button
+              className="text-white focus:outline-none p-2"
+              onClick={() => setIsMenuOpen(true)}
+            >
+              <Menu size={28} />
+            </button>
+            <Link href="/" className="ml-4">
+              <Image
+                src="/bents-logo.jpg"
+                alt="Bent's Woodworking"
+                width={100}
+                height={40}
+                priority
+                className="h-10 w-auto object-contain"
+              />
+            </Link>
+          </div>
 
-        {/* Right side - Navigation Icons */}
-        <div className="flex items-center space-x-4">
-          <Link 
-            href="/chat" 
-            className="text-white hover:text-gray-300 transition-colors"
-          >
-            <MessageCircle size={24} />
-          </Link>
-          <Link 
-            href="/shop" 
-            className="text-white hover:text-gray-300 transition-colors"
-          >
-            <ShoppingBag size={24} />
-          </Link>
+          {/* Right side - Navigation Icons */}
+          <div className="flex items-center space-x-4">
+            <Link 
+              href="/chat" 
+              className="p-2 text-white hover:text-gray-300 transition-colors"
+            >
+              <MessageCircle size={28} />
+            </Link>
+            <Link 
+              href="/shop" 
+              className="p-2 text-white hover:text-gray-300 transition-colors"
+            >
+              <ShoppingBag size={28} />
+            </Link>
+          </div>
         </div>
       </div>
 
