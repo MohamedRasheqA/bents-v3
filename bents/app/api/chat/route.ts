@@ -1,7 +1,7 @@
 // app/api/chat/route.ts
 import { NextResponse } from 'next/server';
 import axios from 'axios';
-
+export const maxDuration = 300;
 // Flask backend URL - you should move this to .env
 const FLASK_BACKEND_URL = 'https://bents-llm-server.vercel.app';
 
