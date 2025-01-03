@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, ExternalLink, Search } from 'lucide-react';
+import Header from '@/components/Header';
 
 // Types
 interface Product {
@@ -140,67 +141,70 @@ export default function ShopPage() {
   }
 
   return (
-    <div className="container mx-auto px-2 py-4 max-w-7xl">
-      <header className="mb-8">
-        <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-center mb-6">
-          Recommended Products
-        </h1>
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-4 sm:space-y-0 sm:space-x-4">
-          <div className="relative w-full sm:w-64">
-            <Input
-              type="text"
-              placeholder="Search products..."
-              value={searchTerm}
-              onChange={handleSearch}
-              className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-[8px] focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          </div>
-          <div className="w-48 sm:w-[200px] self-start sm:self-auto">
-            <Select value={sortOption} onValueChange={handleSort}>
-              <SelectTrigger className="w-full bg-white text-black rounded-[8px] border-gray-300">
-                <SelectValue placeholder="Sort" />
-              </SelectTrigger>
-              <SelectContent className="bg-white border shadow-lg z-50 rounded-[8px]">
-                <SelectItem value="default" className="text-black bg-white hover:bg-gray-100 cursor-pointer">
-                  Sort by
-                </SelectItem>
-                <SelectItem value="video" className="text-black bg-white hover:bg-gray-100 cursor-pointer">
-                  Sort by Video Title
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </header>
-
-      <main>
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        ) : sortOption === 'video' ? (
-          Object.entries(groupedProducts).map(([tag, products]) => (
-            <div key={tag} className="mb-8">
-              <h2 className="text-2xl font-bold mb-4">{tag}</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {filterProducts(products).map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))}
-              </div>
+    <>
+      <Header />
+      <div className="container mx-auto px-2 py-4 max-w-7xl mt-16">
+        <header className="mb-8">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-center mb-6">
+            Recommended Products
+          </h1>
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 space-y-4 sm:space-y-0 sm:space-x-4">
+            <div className="relative w-full sm:w-64">
+              <Input
+                type="text"
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={handleSearch}
+                className="pl-10 pr-4 py-2 w-full border border-gray-300 rounded-[8px] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
             </div>
-          ))
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {filterProducts(products).map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
+            <div className="w-48 sm:w-[200px] self-start sm:self-auto">
+              <Select value={sortOption} onValueChange={handleSort}>
+                <SelectTrigger className="w-full bg-white text-black rounded-[8px] border-gray-300">
+                  <SelectValue placeholder="Sort" />
+                </SelectTrigger>
+                <SelectContent className="bg-white border shadow-lg z-50 rounded-[8px]">
+                  <SelectItem value="default" className="text-black bg-white hover:bg-gray-100 cursor-pointer">
+                    Sort by
+                  </SelectItem>
+                  <SelectItem value="video" className="text-black bg-white hover:bg-gray-100 cursor-pointer">
+                    Sort by Video Title
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
-        )}
-        {!loading && filterProducts(products).length === 0 && Object.keys(groupedProducts).length === 0 && (
-          <p className="text-center text-gray-500 mt-8">No products found matching your search.</p>
-        )}
-      </main>
-    </div>
+        </header>
+
+        <main>
+          {loading ? (
+            <div className="flex justify-center items-center h-64">
+              <Loader2 className="h-8 w-8 animate-spin" />
+            </div>
+          ) : sortOption === 'video' ? (
+            Object.entries(groupedProducts).map(([tag, products]) => (
+              <div key={tag} className="mb-8">
+                <h2 className="text-2xl font-bold mb-4">{tag}</h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {filterProducts(products).map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              {filterProducts(products).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+          {!loading && filterProducts(products).length === 0 && Object.keys(groupedProducts).length === 0 && (
+            <p className="text-center text-gray-500 mt-8">No products found matching your search.</p>
+          )}
+        </main>
+      </div>
+    </>
   );
 }
