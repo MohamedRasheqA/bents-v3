@@ -164,7 +164,7 @@ export default function Section1({ onStartChatting, isSignedIn }: Section1Props)
       {/* Hero Section */}
       <section className="bg-black text-white">
         <div className="container mx-auto px-4 py-16 flex flex-col items-center text-center min-h-[calc(50vh-4rem)]">
-          <h1 className="text-[rgba(23,155,215,255)] text-4xl md:text-5xl lg:text-6xl font-bold mb-6">
+          <h1 className="text-[rgba(23,155,215,255)] text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
             Welcome to Bent's Woodworking Assistant
           </h1>
           <p className="text-white text-lg md:text-xl lg:text-2xl mb-8 max-w-3xl">

@@ -172,8 +172,7 @@ const ConversationItem = ({ conv, index, isLatest }: {
       {/* Question Section */}
       <div className="mb-4 pb-4 border-b">
         <div className="flex items-center gap-2">
-          <PlusCircle className="h-5 w-5 text-gray-400 flex-shrink-0" />
-          <p className="text-gray-800 break-words" style={{ fontFamily: systemFontFamily }}>{conv.question}</p>
+          <p className="text-gray-800 break-words font-bold" style={{ fontFamily: systemFontFamily }}>{conv.question}</p>
         </div>
       </div>
 
@@ -198,10 +197,9 @@ const ConversationItem = ({ conv, index, isLatest }: {
                 ),
                 pre: ({ children, ...props }) => (
                   <pre 
-                    className="w-full overflow-x-auto p-4 bg-gray-50 rounded-lg my-4"
+                    className="w-full p-2 rounded-lg my-1 whitespace-pre-wrap break-words overflow-x-auto"
                     style={{
                       maxWidth: '100%',
-                      whiteSpace: 'pre-wrap',
                       wordBreak: 'break-word'
                     }}
                     {...props}
@@ -211,12 +209,18 @@ const ConversationItem = ({ conv, index, isLatest }: {
                 ),
                 code: ({ children, inline, ...props }) => (
                   inline ? 
-                    <code className="bg-gray-100 rounded px-1" {...props}>{children}</code> :
                     <code 
-                      className="block w-full overflow-x-auto"
+                      className="rounded px-1 whitespace-normal break-words" 
+                      style={{ wordBreak: 'break-word' }}
+                      {...props}
+                    >
+                      {children}
+                    </code> :
+                    <code 
+                      className="block w-full whitespace-pre-wrap break-words overflow-x-auto"
                       style={{
-                        wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap'
+                        maxWidth: '100%',
+                        wordBreak: 'break-word'
                       }}
                       {...props}
                     >
@@ -225,11 +229,14 @@ const ConversationItem = ({ conv, index, isLatest }: {
                 ),
                 p: ({ children, ...props }) => (
                   <p 
-                    className="mb-4 leading-relaxed w-full"
+                    className="text-lg leading-relaxed w-full whitespace-pre-wrap break-words"
                     style={{
                       maxWidth: '100%',
                       overflowWrap: 'break-word',
-                      wordBreak: 'break-word'
+                      wordBreak: 'break-word',
+                      fontFamily: systemFontFamily,
+                      fontWeight: 'normal',
+                      lineHeight: '1.5'
                     }}
                     {...props}
                   >
@@ -237,22 +244,22 @@ const ConversationItem = ({ conv, index, isLatest }: {
                   </p>
                 ),
                 h1: ({ children, ...props }) => (
-                  <h1 className="text-xl font-medium mb-4 w-full break-words" {...props}>{children}</h1>
+                  <h1 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h1>
                 ),
                 h2: ({ children, ...props }) => (
-                  <h2 className="text-lg font-medium mb-3 w-full break-words" {...props}>{children}</h2>
+                  <h2 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h2>
                 ),
                 h3: ({ children, ...props }) => (
-                  <h3 className="text-base font-medium mb-2 w-full break-words" {...props}>{children}</h3>
+                  <h3 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h3>
                 ),
                 ul: ({ children, ...props }) => (
-                  <ul className="list-disc pl-6 mb-4 w-full" {...props}>{children}</ul>
+                  <ul className="text-lg list-disc pl-6 w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</ul>
                 ),
                 ol: ({ children, ...props }) => (
-                  <ol className="list-decimal pl-6 mb-4 w-full" {...props}>{children}</ol>
+                  <ol className="text-lg list-decimal pl-6 w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</ol>
                 ),
                 li: ({ children, ...props }) => (
-                  <li className="mb-2 w-full break-words" {...props}>{children}</li>
+                  <li className="text-lg w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</li>
                 )
               }}
             >
@@ -461,25 +468,6 @@ export default function ChatPage() {
         createdAt: new Date()
       });
 
-      // Add the conversation to the current session
-      const newConversation = {
-        id: uuidv4(),
-        question: query,
-        text: '',
-        timestamp: new Date().toISOString()
-      };
-
-      setCurrentConversation(prev => [...prev, newConversation]);
-      
-      // Update sessions state
-      setSessions(prev =>
-        prev.map(session =>
-          session.id === currentSessionId
-            ? { ...session, conversations: [...session.conversations, newConversation] }
-            : session
-        )
-      );
-
       setSearchQuery("");
     } catch (error) {
       console.error('Search Error:', error);
@@ -558,27 +546,101 @@ export default function ChatPage() {
         />
       )}
       {(isStreaming || isSecondResponseLoading) && processingQuery && messages.length > 0 && (
-        <div className="w-full bg-white rounded-lg shadow-sm p-6 mb-4">
-          {/* Question Section */}
-          <div className="mb-4 pb-4 border-b">
-            <div className="flex items-center gap-2">
-              <PlusCircle className="h-5 w-5 text-gray-400" />
-              <p className="text-gray-800">{processingQuery}</p>
+        <div className="w-full bg-white rounded-lg shadow-sm p-6 mb-4 overflow-hidden">
+          {isStreaming && (
+            <div className="mb-4 pb-4 border-b">
+              <div className="flex items-center gap-2">
+                <p className="text-gray-800 break-words font-bold" style={{ fontFamily: systemFontFamily }}>{processingQuery}</p>
+              </div>
             </div>
-          </div>
-
-          {/* Answer Section - Updated styling */}
-          <div className="prose prose-sm max-w-none">
-            <div className="text-gray-800 font-normal break-words [&>p]:mb-4 [&>p]:leading-relaxed [&>h1]:text-xl [&>h1]:font-medium [&>h1]:mb-4 [&>h2]:text-lg [&>h2]:font-medium [&>h2]:mb-3 [&>h3]:text-base [&>h3]:font-medium [&>h3]:mb-2">
-              <ReactMarkdown>{messages[messages.length - 1].content}</ReactMarkdown>
+          )}
+          {/* Answer Section */}
+          <div className="prose prose-sm max-w-none overflow-hidden">
+            <div className="w-full overflow-hidden">
+              <ReactMarkdown
+                className="markdown-content break-words whitespace-pre-wrap overflow-hidden"
+                components={{
+                  root: ({ children, ...props }) => (
+                    <div className="w-full overflow-hidden" {...props}>{children}</div>
+                  ),
+                  pre: ({ children, ...props }) => (
+                    <pre 
+                      className="w-full p-2 rounded-lg my-1 whitespace-pre-wrap break-words overflow-x-auto"
+                      style={{
+                        maxWidth: '100%',
+                        wordBreak: 'break-word'
+                      }}
+                      {...props}
+                    >
+                      {children}
+                    </pre>
+                  ),
+                  code: ({ children, inline, ...props }) => (
+                    inline ? 
+                      <code 
+                        className="rounded px-1 whitespace-normal break-words" 
+                        style={{ wordBreak: 'break-word' }}
+                        {...props}
+                      >
+                        {children}
+                      </code> :
+                      <code 
+                        className="block w-full whitespace-pre-wrap break-words overflow-x-auto"
+                        style={{
+                          maxWidth: '100%',
+                          wordBreak: 'break-word'
+                        }}
+                        {...props}
+                      >
+                        {children}
+                      </code>
+                  ),
+                  p: ({ children, ...props }) => (
+                    <p 
+                      className="text-lg leading-relaxed w-full whitespace-pre-wrap break-words"
+                      style={{
+                        maxWidth: '100%',
+                        overflowWrap: 'break-word',
+                        wordBreak: 'break-word',
+                        fontFamily: systemFontFamily,
+                        fontWeight: 'normal',
+                        lineHeight: '1.5'
+                      }}
+                      {...props}
+                    >
+                      {children}
+                    </p>
+                  ),
+                  h1: ({ children, ...props }) => (
+                    <h1 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h1>
+                  ),
+                  h2: ({ children, ...props }) => (
+                    <h2 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h2>
+                  ),
+                  h3: ({ children, ...props }) => (
+                    <h3 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h3>
+                  ),
+                  ul: ({ children, ...props }) => (
+                    <ul className="text-lg list-disc pl-6 w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</ul>
+                  ),
+                  ol: ({ children, ...props }) => (
+                    <ol className="text-lg list-decimal pl-6 w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</ol>
+                  ),
+                  li: ({ children, ...props }) => (
+                    <li className="text-lg w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</li>
+                  )
+                }}
+              >
+                {messages[messages.length - 1].content}
+              </ReactMarkdown>
             </div>
           </div>
 
           {/* Show skeleton loaders during second API call */}
           {isSecondResponseLoading && (
-            <div className="mt-8">
+            <div className="mt-4 border-t pt-4">
               {/* Videos skeleton */}
-              <div className="mb-8">
+              <div className="mb-4">
                 <h3 className="text-base font-semibold mb-3">Related Videos</h3>
                 <div className="flex overflow-x-auto space-x-4">
                   {[1, 2].map((i) => (
@@ -602,10 +664,6 @@ export default function ChatPage() {
                     <div key={i} className="flex-none min-w-[180px] bg-white border rounded-lg px-4 py-3">
                       <div className="h-4 bg-gray-200 rounded animate-pulse mb-2" />
                       <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3" />
-                      <div className="mt-2 flex gap-1">
-                        <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
-                        <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
-                      </div>
                     </div>
                   ))}
                 </div>
@@ -906,76 +964,92 @@ const ProcessingCard = ({
   loadingProgress: number,
   setLoadingProgress: React.Dispatch<React.SetStateAction<number>>
 }) => {
-  const processingRef = useRef<HTMLDivElement>(null);
+  const loadingCardRef = useRef<HTMLDivElement>(null);
+  const currentStep = Math.floor(loadingProgress / 25);
 
   useEffect(() => {
-    const scrollToCard = () => {
-      processingRef.current?.scrollIntoView({ 
-        behavior: 'smooth',
-        block: 'center'
-      });
-    };
-    scrollToCard();
+    if (loadingCardRef.current) {
+      setTimeout(() => {
+        loadingCardRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 100);
+    }
   }, []);
 
   useEffect(() => {
-    if (loadingProgress < 3) {
+    if (loadingProgress < 100) {
       const timer = setTimeout(() => {
-        setLoadingProgress(prev => Math.min(prev + 1, 3));
-      }, 300);
+        setLoadingProgress(prev => Math.min(prev + 1, 100));
+      }, 50);
       return () => clearTimeout(timer);
     }
   }, [loadingProgress, setLoadingProgress]);
 
   return (
-    <>
-      <div className="bg-white rounded-lg shadow-sm p-4 mb-4 w-full">
-        <div className="flex items-center gap-2">
-          <PlusCircle className="h-5 w-5 text-gray-400" />
-          <p className="text-gray-800">{query}</p>
-        </div>
-      </div>
-      <div ref={processingRef} className="bg-white rounded-lg shadow-sm p-6 mb-4 w-full">
-        <h2 className="text-xl font-semibold mb-6">Processing Your Query</h2>
+    <div className="flex justify-center w-full mb-4">
+      <div 
+        ref={loadingCardRef}
+        className="inline-flex flex-col bg-white rounded-lg shadow-sm p-6"
+      >
         <div className="space-y-6">
-          {processingSteps.map((step, index) => {
-            const isComplete = loadingProgress > index;
-            const isCurrent = loadingProgress === index;
-            const isLastStep = index === processingSteps.length - 1;
-            
-            return (
-              <div key={step} className="flex items-center gap-3">
-                <div className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center",
-                  isComplete ? "bg-blue-500" : 
-                  isCurrent ? "bg-blue-500" : 
-                  "bg-gray-200"
-                )}>
-                  {isComplete ? (
-                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : isCurrent && isLastStep ? (
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <div className={cn(
-                      "w-2 h-2 rounded-full",
-                      isCurrent ? "bg-white" : "bg-gray-300"
-                    )} />
+          <div className="flex items-center justify-between gap-8 mb-1">
+            <h2 className="text-xl font-semibold whitespace-nowrap">Processing Your Query</h2>
+            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent flex-shrink-0"></div>
+          </div>
+          
+          <div className="space-y-3">
+            {processingSteps.map((step, index) => {
+              const isComplete = index < currentStep;
+              const isCurrent = index === currentStep;
+              const isLast = index === processingSteps.length - 1;
+              
+              return (
+                <div key={step} className="relative">
+                  <div className="flex items-center gap-3">
+                    <div 
+                      className={cn(
+                        "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
+                        isComplete ? "bg-blue-500" : 
+                        isCurrent ? "bg-blue-500" : 
+                        "bg-gray-200"
+                      )}
+                    >
+                      {isComplete ? (
+                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                      ) : isCurrent ? (
+                        <div className="w-2 h-2 bg-white rounded-full" />
+                      ) : (
+                        <div className="w-2 h-2 bg-gray-300 rounded-full" />
+                      )}
+                    </div>
+                    <span className={cn(
+                      "text-sm whitespace-nowrap",
+                      isComplete || isCurrent ? "text-gray-900" : "text-gray-400"
+                    )}>
+                      {step}
+                    </span>
+                  </div>
+                  
+                  {/* Vertical connecting line */}
+                  {!isLast && (
+                    <div 
+                      className={cn(
+                        "absolute left-3 ml-[-1px] w-0.5 h-3",
+                        isComplete ? "bg-blue-500" : "bg-gray-200"
+                      )} 
+                      style={{ top: '100%' }} 
+                    />
                   )}
                 </div>
-                <span className={cn(
-                  "text-sm",
-                  isComplete || isCurrent ? "text-gray-900" : "text-gray-400"
-                )}>
-                  {step}
-                  {isCurrent && isLastStep && "..."}
-                </span>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
