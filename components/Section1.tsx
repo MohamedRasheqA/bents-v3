@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { MessageSquare, LayoutDashboard } from 'lucide-react';
 import axios from "axios";
 import { cn } from '@/lib/utils';
+import { SignInButton, SignedIn, SignedOut } from '@clerk/nextjs';
 
 // Types
 interface FormData {
@@ -164,34 +165,60 @@ export default function Section1({ onStartChatting, isSignedIn }: Section1Props)
       {/* Hero Section */}
       <section className="bg-black text-white">
         <div className="container mx-auto px-4 py-16 flex flex-col items-center text-center min-h-[calc(50vh-4rem)]">
-          <h1 className="text-[rgba(23,155,215,255)] text-3xl md:text-4xl lg:text-5xl font-bold mb-6">
+          <h1 className="text-[rgba(23,155,215,255)] text-3xl md:text-4xl lg:text-4xl font-bold mb-6">
             Welcome to Bent's Woodworking Assistant
           </h1>
           <p className="text-white text-lg md:text-xl lg:text-2xl mb-8 max-w-3xl">
             Your AI-powered companion for all things woodworking. Get expert advice, tool recommendations, and shop improvement tips.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <button 
-              onClick={onStartChatting}
-              className={cn(
-                "inline-block bg-[rgba(23,155,215,255)] text-black font-semibold",
-                "py-3 px-6 w-full sm:w-48 rounded-[8px]",
-                "touch-manipulation",
-                "hover:bg-[rgba(20,139,193,255)] active:bg-[rgba(18,125,174,255)]",
-                "transform transition-all duration-300 ease-in-out",
-                "hover:scale-105 active:scale-95",
-                "hover:shadow-lg active:shadow-inner",
-                "relative overflow-hidden group",
-                "hover:ring-2 hover:ring-blue-300 hover:ring-opacity-50",
-                "before:absolute before:inset-0",
-                "before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
-                "before:translate-x-[-200%] before:transition-transform before:duration-700",
-                "hover:before:translate-x-[200%]",
-                "tap-highlight-transparent",
-                "focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
-              )}>
-              <span className="relative z-10">Start Chatting</span>
-            </button>
+            <SignedOut>
+              <SignInButton mode="modal">
+                <button 
+                  className={cn(
+                    "inline-block bg-[rgba(23,155,215,255)] text-black font-semibold",
+                    "py-3 px-6 w-full sm:w-48 rounded-[8px]",
+                    "touch-manipulation",
+                    "hover:bg-[rgba(20,139,193,255)] active:bg-[rgba(18,125,174,255)]",
+                    "transform transition-all duration-300 ease-in-out",
+                    "hover:scale-105 active:scale-95",
+                    "hover:shadow-lg active:shadow-inner",
+                    "relative overflow-hidden group",
+                    "hover:ring-2 hover:ring-blue-300 hover:ring-opacity-50",
+                    "before:absolute before:inset-0",
+                    "before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
+                    "before:translate-x-[-200%] before:transition-transform before:duration-700",
+                    "hover:before:translate-x-[200%]",
+                    "tap-highlight-transparent",
+                    "focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                  )}>
+                  <span className="relative z-10">Start Chatting</span>
+                </button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <button 
+                onClick={onStartChatting}
+                className={cn(
+                  "inline-block bg-[rgba(23,155,215,255)] text-black font-semibold",
+                  "py-3 px-6 w-full sm:w-48 rounded-[8px]",
+                  "touch-manipulation",
+                  "hover:bg-[rgba(20,139,193,255)] active:bg-[rgba(18,125,174,255)]",
+                  "transform transition-all duration-300 ease-in-out",
+                  "hover:scale-105 active:scale-95",
+                  "hover:shadow-lg active:shadow-inner",
+                  "relative overflow-hidden group",
+                  "hover:ring-2 hover:ring-blue-300 hover:ring-opacity-50",
+                  "before:absolute before:inset-0",
+                  "before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent",
+                  "before:translate-x-[-200%] before:transition-transform before:duration-700",
+                  "hover:before:translate-x-[200%]",
+                  "tap-highlight-transparent",
+                  "focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
+                )}>
+                <span className="relative z-10">Start Chatting</span>
+              </button>
+            </SignedIn>
 
             <Link 
               href="/shop" 
