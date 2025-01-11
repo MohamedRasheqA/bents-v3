@@ -26,6 +26,11 @@ interface FeatureCardProps {
   description: string;
 }
 
+interface Section1Props {
+  onStartChatting: () => void;
+  isSignedIn?: boolean;
+}
+
 // SVG Component
 function ToolRecommendationLogo({ className = "w-12 h-12" }: { className?: string }) {
   return (
@@ -115,7 +120,7 @@ function FeatureCard({ icon, title, description }: FeatureCardProps) {
   );
 }
 
-export default function Section1() {
+export default function Section1({ onStartChatting, isSignedIn }: Section1Props) {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
@@ -166,8 +171,8 @@ export default function Section1() {
             Your AI-powered companion for all things woodworking. Get expert advice, tool recommendations, and shop improvement tips.
           </p>
           <div className="flex flex-col sm:flex-row gap-4">
-            <Link 
-              href="/chat" 
+            <button 
+              onClick={onStartChatting}
               className={cn(
                 "inline-block bg-[rgba(23,155,215,255)] text-black font-semibold",
                 "py-3 px-6 w-full sm:w-48 rounded-[8px]",
@@ -186,7 +191,7 @@ export default function Section1() {
                 "focus:outline-none focus:ring-2 focus:ring-blue-400 focus:ring-opacity-50"
               )}>
               <span className="relative z-10">Start Chatting</span>
-            </Link>
+            </button>
 
             <Link 
               href="/shop" 

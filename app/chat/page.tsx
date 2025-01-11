@@ -11,6 +11,8 @@ import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 import Header from '@/components/Header';
 import YouTube from 'react-youtube';
+import ChatHistory from '@/components/ChatHistory';
+import { useSession } from '@/lib/hooks/useSession';
 
 // Types
 interface Conversation {
@@ -77,6 +79,9 @@ const processingSteps = [
   "Generating answer"
 ];
 
+// Font family constant
+const systemFontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
 // Helper functions
 const getYoutubeVideoId = (url: string): string | null => {
   const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/;
@@ -90,13 +95,39 @@ const getStartTime = (timestamp: string): number => {
 };
 
 // Helper function to load saved data
-const loadSavedData = () => {
+const loadSavedData = async () => {
+  try {
+    const response = await axios.get('/api/session');
+    const savedSessions = response.data;
+    
+    if (Array.isArray(savedSessions) && savedSessions.length > 0) {
+      return {
+        sessions: savedSessions,
+        currentId: savedSessions[0].id,
+        conversations: savedSessions[0].conversations || []
+      };
+    }
+  } catch (error) {
+    console.error('Error loading saved data:', error);
+  }
+  
   const defaultSession = { id: uuidv4(), conversations: [] };
   return {
     sessions: [defaultSession],
     currentId: defaultSession.id,
     conversations: []
   };
+};
+
+// Add function to save sessions to database
+const saveSessionsToDatabase = async (sessions: Session[]) => {
+  try {
+    await axios.post('/api/session', {
+      sessionData: sessions
+    });
+  } catch (error) {
+    console.error('Error saving sessions to database:', error);
+  }
 };
 
 const ProductCard = ({ product }: { product: Product }) => {
@@ -137,33 +168,111 @@ const ConversationItem = ({ conv, index, isLatest }: {
   }, [isLatest]);
 
   return (
-    <div ref={conversationRef} className="w-full bg-white rounded-lg shadow-sm p-6 mb-4">
+    <div ref={conversationRef} className="w-full max-w-full bg-white rounded-lg shadow-sm p-6 mb-4 overflow-hidden" style={{ fontFamily: systemFontFamily }}>
       {/* Question Section */}
       <div className="mb-4 pb-4 border-b">
         <div className="flex items-center gap-2">
-          <PlusCircle className="h-5 w-5 text-gray-400" />
-          <p className="text-gray-800">{conv.question}</p>
+          <PlusCircle className="h-5 w-5 text-gray-400 flex-shrink-0" />
+          <p className="text-gray-800 break-words" style={{ fontFamily: systemFontFamily }}>{conv.question}</p>
         </div>
       </div>
 
-      {/* Answer Section - Updated styling */}
+      {/* Answer Section - Updated for consistent containment */}
       <div className="prose prose-sm max-w-none">
-        <div className="text-gray-800 font-normal break-words [&>p]:mb-4 [&>p]:leading-relaxed [&>h1]:text-xl [&>h1]:font-medium [&>h1]:mb-4 [&>h2]:text-lg [&>h2]:font-medium [&>h2]:mb-3 [&>h3]:text-base [&>h3]:font-medium [&>h3]:mb-2">
-          <ReactMarkdown>{conv.text}</ReactMarkdown>
+        <div className="relative w-full overflow-hidden">
+          <div 
+            className="text-gray-800 font-normal"
+            style={{ 
+              fontFamily: systemFontFamily,
+              maxWidth: '100%',
+              wordBreak: 'break-word',
+              overflowWrap: 'break-word',
+              whiteSpace: 'pre-wrap'
+            }}
+          >
+            <ReactMarkdown
+              className="markdown-content"
+              components={{
+                root: ({ children, ...props }) => (
+                  <div className="w-full overflow-hidden" {...props}>{children}</div>
+                ),
+                pre: ({ children, ...props }) => (
+                  <pre 
+                    className="w-full overflow-x-auto p-4 bg-gray-50 rounded-lg my-4"
+                    style={{
+                      maxWidth: '100%',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word'
+                    }}
+                    {...props}
+                  >
+                    {children}
+                  </pre>
+                ),
+                code: ({ children, inline, ...props }) => (
+                  inline ? 
+                    <code className="bg-gray-100 rounded px-1" {...props}>{children}</code> :
+                    <code 
+                      className="block w-full overflow-x-auto"
+                      style={{
+                        wordBreak: 'break-word',
+                        whiteSpace: 'pre-wrap'
+                      }}
+                      {...props}
+                    >
+                      {children}
+                    </code>
+                ),
+                p: ({ children, ...props }) => (
+                  <p 
+                    className="mb-4 leading-relaxed w-full"
+                    style={{
+                      maxWidth: '100%',
+                      overflowWrap: 'break-word',
+                      wordBreak: 'break-word'
+                    }}
+                    {...props}
+                  >
+                    {children}
+                  </p>
+                ),
+                h1: ({ children, ...props }) => (
+                  <h1 className="text-xl font-medium mb-4 w-full break-words" {...props}>{children}</h1>
+                ),
+                h2: ({ children, ...props }) => (
+                  <h2 className="text-lg font-medium mb-3 w-full break-words" {...props}>{children}</h2>
+                ),
+                h3: ({ children, ...props }) => (
+                  <h3 className="text-base font-medium mb-2 w-full break-words" {...props}>{children}</h3>
+                ),
+                ul: ({ children, ...props }) => (
+                  <ul className="list-disc pl-6 mb-4 w-full" {...props}>{children}</ul>
+                ),
+                ol: ({ children, ...props }) => (
+                  <ol className="list-decimal pl-6 mb-4 w-full" {...props}>{children}</ol>
+                ),
+                li: ({ children, ...props }) => (
+                  <li className="mb-2 w-full break-words" {...props}>{children}</li>
+                )
+              }}
+            >
+              {conv.text}
+            </ReactMarkdown>
+          </div>
         </div>
       </div>
 
       {/* Videos Section */}
       {conv.videoLinks && Object.keys(conv.videoLinks).length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-base font-semibold mb-3">Related Videos</h3>
-          <div className="flex overflow-x-auto space-x-4">
+        <div className="mt-4 overflow-hidden">
+          <h3 className="text-base font-semibold mb-3" style={{ fontFamily: systemFontFamily }}>Related Videos</h3>
+          <div className="flex overflow-x-auto space-x-4 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {Object.entries(conv.videoLinks).map(([key, info]) => {
               const videoId = getYoutubeVideoId(info.urls[0]);
               if (!videoId) return null;
               
               return (
-                <div key={key} className="flex-none w-[280px] bg-white border rounded-lg overflow-hidden flex flex-col">
+                <div key={key} className="flex-none w-[280px] bg-white border rounded-lg overflow-hidden">
                   <div className="relative aspect-video w-full">
                     <YouTube
                       videoId={videoId}
@@ -178,16 +287,16 @@ const ConversationItem = ({ conv, index, isLatest }: {
                     />
                   </div>
                   <div className="p-3">
-                    <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2">
+                    <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2 break-words" style={{ fontFamily: systemFontFamily }}>
                       {info.video_title}
                     </h4>
                     {info.description && (
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+                      <p className="text-sm text-gray-600 line-clamp-2 mb-2 break-words" style={{ fontFamily: systemFontFamily }}>
                         {info.description}
                       </p>
                     )}
                     <div className="flex items-center text-xs text-gray-500">
-                      <span>Starts at {info.timestamp}</span>
+                      <span style={{ fontFamily: systemFontFamily }}>Starts at {info.timestamp}</span>
                     </div>
                   </div>
                 </div>
@@ -199,9 +308,9 @@ const ConversationItem = ({ conv, index, isLatest }: {
 
       {/* Products Section */}
       {conv.related_products && conv.related_products.length > 0 && (
-        <div className="mt-4">
-          <h3 className="text-base font-semibold mb-3">Related Products</h3>
-          <div className="flex overflow-x-auto space-x-4 pb-2">
+        <div className="mt-4 overflow-hidden">
+          <h3 className="text-base font-semibold mb-3" style={{ fontFamily: systemFontFamily }}>Related Products</h3>
+          <div className="flex overflow-x-auto space-x-4 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {conv.related_products.map((product, idx) => (
               <ProductCard key={idx} product={product} />
             ))}
@@ -214,18 +323,22 @@ const ConversationItem = ({ conv, index, isLatest }: {
 
 // Main Chat Page Component
 export default function ChatPage() {
-  // Load saved data on initial render
-  const { sessions: initialSessions, currentId: initialCurrentId, conversations: initialConversations } = loadSavedData();
+  const {
+    sessions,
+    setSessions,
+    currentSessionId,
+    setCurrentSessionId,
+    isLoading: sessionsLoading,
+    error: sessionsError
+  } = useSession();
+
+  // Initialize with empty values
+  const [currentConversation, setCurrentConversation] = useState<Conversation[]>([]);
 
   // Error states
   const [error, setError] = useState<string | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
 
-  // Initialize with saved session
-  const [sessions, setSessions] = useState<Session[]>(initialSessions);
-  const [currentSessionId, setCurrentSessionId] = useState<string>(initialCurrentId);
-  const [currentConversation, setCurrentConversation] = useState<Conversation[]>(initialConversations);
-  
   // Other states
   const [showInitialQuestions, setShowInitialQuestions] = useState(true);
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -266,7 +379,7 @@ export default function ChatPage() {
         console.log('No question available in ref');
         return;
       }
-      
+  
       // Start second API call
       setIsSecondResponseLoading(true);
       try {
@@ -274,7 +387,7 @@ export default function ChatPage() {
 
         const requestPayload = {
           messages: [{
-            role: 'user',
+              role: 'user', 
             content: currentQuestion,
           }, {
             role: 'assistant',
@@ -285,10 +398,10 @@ export default function ChatPage() {
         const linksResponse = await axios.post('/api/links', requestPayload);
         console.log('Links API Response:', linksResponse.data);
         
-        if (linksResponse.data.status === 'not_relevant') {
-          console.log('Query marked as not relevant');
+          if (linksResponse.data.status === 'not_relevant') {
+            console.log('Query marked as not relevant');
           setIsSecondResponseLoading(false);
-          return;
+            return;
         }
 
         // Update conversation history with complete response
@@ -300,7 +413,7 @@ export default function ChatPage() {
           videoLinks: linksResponse.data.videoReferences || {},
           related_products: linksResponse.data.relatedProducts || []
         };
-
+        
         setCurrentConversation(prev => [...prev, newConversation]);
         setSessions(prev =>
           prev.map(session =>
@@ -330,7 +443,7 @@ export default function ChatPage() {
     }
   });
 
-  // Update handleSearch to use ref
+  // Update handleSearch
   const handleSearch = async (e: React.FormEvent | null, index?: number) => {
     if (e) e.preventDefault();
     const query = index !== undefined ? randomQuestions[index] : searchQuery;
@@ -338,7 +451,7 @@ export default function ChatPage() {
     if (!query.trim() || isLoading) return;
     
     setProcessingQuery(query);
-    currentQuestionRef.current = query; // Update ref instead of state
+    currentQuestionRef.current = query;
     setShowInitialQuestions(false);
     
     try {
@@ -347,19 +460,43 @@ export default function ChatPage() {
         content: query,
         createdAt: new Date()
       });
+
+      // Add the conversation to the current session
+      const newConversation = {
+        id: uuidv4(),
+        question: query,
+        text: '',
+        timestamp: new Date().toISOString()
+      };
+
+      setCurrentConversation(prev => [...prev, newConversation]);
+      
+      // Update sessions state
+      setSessions(prev =>
+        prev.map(session =>
+          session.id === currentSessionId
+            ? { ...session, conversations: [...session.conversations, newConversation] }
+            : session
+        )
+      );
+
       setSearchQuery("");
     } catch (error) {
       console.error('Search Error:', error);
+      setError('Error processing your request');
     }
   };
 
-  // Update handleNewConversation to reset ref
+  // Handle new conversation creation
   const handleNewConversation = () => {
     const newSessionId = uuidv4();
-    setSessions(prev => [...prev, { id: newSessionId, conversations: [] }]);
+    const newSession = { id: newSessionId, conversations: [] };
+    
+    setSessions(prev => [...prev, newSession]);
     setCurrentSessionId(newSessionId);
+    setCurrentConversation([]);
     setShowInitialQuestions(true);
-    currentQuestionRef.current = ""; // Reset ref
+    currentQuestionRef.current = "";
   };
 
   // Loading State Component
@@ -507,8 +644,9 @@ export default function ChatPage() {
     const selectedSession = sessions.find(session => session.id === currentSessionId);
     if (selectedSession) {
       setCurrentConversation(selectedSession.conversations);
+      setShowInitialQuestions(selectedSession.conversations.length === 0);
     }
-  }, [currentSessionId, sessions]);
+  }, [sessions, currentSessionId]);
 
   useEffect(() => {
     if (isLoading && loadingProgress < 3) {
@@ -532,22 +670,6 @@ export default function ChatPage() {
     fetchQuestions();
   }, []);
 
-  // Effect to save sessions and current ID
-  useEffect(() => {
-    try {
-      const updatedSessions = sessions.map(session => {
-        if (session.id === currentSessionId) {
-          return { ...session, conversations: currentConversation };
-        }
-        return session;
-      });
-      localStorage.setItem('chatSessions', JSON.stringify(updatedSessions));
-      localStorage.setItem('currentSessionId', currentSessionId);
-    } catch (error) {
-      console.error('Error saving conversation:', error);
-    }
-  }, [currentConversation, currentSessionId, sessions]);
-
   // Handlers
   const handleQuestionSelect = (question: string, index: number) => {
     setLoadingQuestionIndex(index);
@@ -563,193 +685,115 @@ export default function ChatPage() {
     }
   };
 
-  // Add effect to clear localStorage before page refresh
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      localStorage.clear();
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
-
   // Main render
   return (
-    <div className="flex flex-col min-h-screen bg-[#F8F9FA] overflow-x-hidden">
-      <Header 
-        sessions={sessions}
-        currentSessionId={currentSessionId}
-        onSessionSelect={handleSessionSelect}
-        onNewConversation={handleNewConversation}
-      />
-      
-      {(error || wsError) && (
-        <div className="w-full max-w-4xl mx-auto px-4 mt-20 mb-4">
-          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
-            <strong className="font-bold">Error: </strong>
-            <span className="block sm:inline">{error || wsError}</span>
-            <button
-              className="absolute top-0 right-0 px-4 py-3"
-              onClick={() => {
-                setError(null);
-                setWsError(null);
-              }}
-            >
-              <span className="sr-only">Dismiss</span>
-              <span className="text-red-500">&times;</span>
-            </button>
-          </div>
-        </div>
-      )}
-      
-      <main className={cn(
-        "flex-grow w-full",
-        "flex flex-col items-center",
-        "pt-20",
-        currentConversation.length > 0 ? "pb-[80px]" : "h-[calc(100vh-64px)]",
-      )}>
-        {showInitialQuestions ? (
-          <div className="w-full h-full flex flex-col items-center justify-center px-4">
-            <div className="text-center mb-16">
-              <h1 className="text-4xl font-semibold text-[#1E1E1E]">
-                A question creates knowledge
-              </h1>
-            </div>
-            
-            <div className="w-full max-w-3xl mx-auto mb-16">
-              <SearchBar 
-                loading={isLoading}
-                searchQuery={searchQuery}
-                processingQuery={processingQuery}
-                onSearch={handleSearch}
-                onNewConversation={handleNewConversation}
-                setSearchQuery={setSearchQuery}
-              />
-            </div>
-
-            <div className="w-full grid gap-4 grid-cols-1 sm:grid-cols-3 max-w-7xl mx-auto">
-              {randomQuestions.map((question, index) => (
-                <button
-                  key={index}
-                  onClick={(e) => handleSearch(e as any, index)}
-                  disabled={isLoading && loadingQuestionIndex === index}
-                  className={cn(
-                    "min-h-[50px]",
-                    "p-4",
-                    "text-left rounded-lg",
-                    "bg-white hover:bg-gray-50",
-                    "border border-gray-200",
-                    "text-sm text-gray-800",
-                    "shadow-sm transition-all duration-200",
-                    "hover:shadow-md",
-                    "flex items-center",
-                    "w-full",
-                    isLoading && loadingQuestionIndex === index ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
-                  )}
-                >
-                  <span className="line-clamp-2">{question}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="w-full max-w-4xl px-4">
-            <div className="w-full">
-              {currentConversation.map((conv, index) => (
-                <ConversationItem 
-                  key={conv.id}
-                  conv={conv}
-                  index={index}
-                  isLatest={index === currentConversation.length - 1}
-                />
-              ))}
-              {isLoading && !isStreaming && (
-                <ProcessingCard 
-                  query={processingQuery} 
-                  loadingProgress={loadingProgress}
-                  setLoadingProgress={setLoadingProgress}
-                />
-              )}
-              {(isStreaming || isSecondResponseLoading) && processingQuery && messages.length > 0 && (
-                <div className="w-full bg-white rounded-lg shadow-sm p-6 mb-4">
-                  {/* Question Section */}
-                  <div className="mb-4 pb-4 border-b">
-                    <div className="flex items-center gap-2">
-                      <PlusCircle className="h-5 w-5 text-gray-400" />
-                      <p className="text-gray-800">{processingQuery}</p>
-                    </div>
-                  </div>
-
-                  {/* Answer Section - Updated styling */}
-                  <div className="prose prose-sm max-w-none">
-                    <div className="text-gray-800 font-normal break-words [&>p]:mb-4 [&>p]:leading-relaxed [&>h1]:text-xl [&>h1]:font-medium [&>h1]:mb-4 [&>h2]:text-lg [&>h2]:font-medium [&>h2]:mb-3 [&>h3]:text-base [&>h3]:font-medium [&>h3]:mb-2">
-                      <ReactMarkdown>{messages[messages.length - 1].content}</ReactMarkdown>
-                    </div>
-                  </div>
-
-                  {/* Show skeleton loaders during second API call */}
-                  {isSecondResponseLoading && (
-                    <div className="mt-8">
-                      {/* Videos skeleton */}
-                      <div className="mb-8">
-                        <h3 className="text-base font-semibold mb-3">Related Videos</h3>
-                        <div className="flex overflow-x-auto space-x-4">
-                          {[1, 2].map((i) => (
-                            <div key={i} className="flex-none w-[280px] bg-white border rounded-lg overflow-hidden">
-                              <div className="aspect-video w-full bg-gray-200 animate-pulse" />
-                              <div className="p-3">
-                                <div className="h-4 bg-gray-200 rounded animate-pulse mb-2" />
-                                <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3" />
-                                <div className="mt-2 h-3 bg-gray-200 rounded animate-pulse w-1/3" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Products skeleton */}
-                      <div>
-                        <h3 className="text-base font-semibold mb-3">Related Products</h3>
-                        <div className="flex overflow-x-auto space-x-4">
-                          {[1, 2, 3].map((i) => (
-                            <div key={i} className="flex-none min-w-[180px] bg-white border rounded-lg px-4 py-3">
-                              <div className="h-4 bg-gray-200 rounded animate-pulse mb-2" />
-                              <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3" />
-                              <div className="mt-2 flex gap-1">
-                                <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
-                                <div className="h-5 w-16 bg-gray-200 rounded animate-pulse" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </main>
-
-      {!showInitialQuestions && (
-        <div className="fixed bottom-0 left-0 right-0 bg-white border-t">
-          <div className="w-full max-w-4xl mx-auto px-4">
-            <SearchBar 
-              loading={isLoading}
-              searchQuery={searchQuery}
-              processingQuery={processingQuery}
-              onSearch={handleSearch}
+    <div className="flex flex-col min-h-screen bg-[#F8F9FA]">
+      <div className="fixed inset-0 overflow-hidden">
+        <div className="absolute inset-0 overflow-y-auto">
+          <div className="min-h-screen">
+            <Header 
+              sessions={sessions}
+              currentSessionId={currentSessionId}
+              onSessionSelect={handleSessionSelect}
               onNewConversation={handleNewConversation}
-              setSearchQuery={setSearchQuery}
-              className="p-4"
             />
+            
+            {(error || wsError) && (
+              <div className="w-full max-w-4xl mx-auto px-4 mt-20 mb-4">
+                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded relative">
+                  <strong className="font-bold">Error: </strong>
+                  <span className="block sm:inline">{error || wsError}</span>
+                  <button
+                    className="absolute top-0 right-0 px-4 py-3"
+                    onClick={() => {
+                      setError(null);
+                      setWsError(null);
+                    }}
+                  >
+                    <span className="sr-only">Dismiss</span>
+                    <span className="text-red-500">&times;</span>
+                  </button>
+                </div>
+              </div>
+            )}
+            
+            <main className={cn(
+              "relative",
+              "flex-grow w-full",
+              "flex flex-col items-center",
+              "pt-32 px-4",
+              currentConversation.length > 0 ? "pb-[80px]" : "min-h-[calc(100vh-64px)]",
+            )}>
+              <div className="w-full max-w-5xl mx-auto">
+                {showInitialQuestions ? (
+                  <div className="w-full min-h-[calc(100vh-200px)] flex flex-col items-center justify-center">
+                    <div className="text-center mb-8">
+                      <h1 className="text-2xl font-semibold text-gray-900">
+                        A question creates knowledge
+                      </h1>
+                    </div>
+                    
+                    <div className="w-full max-w-2xl mx-auto mb-12">
+                      <SearchBar 
+                        loading={isLoading}
+                        searchQuery={searchQuery}
+                        processingQuery={processingQuery}
+                        onSearch={handleSearch}
+                        onNewConversation={handleNewConversation}
+                        setSearchQuery={setSearchQuery}
+                      />
+                    </div>
+
+                    <div className="w-full max-w-4xl grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 px-4">
+                      {randomQuestions.map((question, index) => (
+                        <button
+                          key={index}
+                          onClick={(e) => handleSearch(e as any, index)}
+                          disabled={isLoading && loadingQuestionIndex === index}
+                          className={cn(
+                            "flex-grow flex items-center bg-background",
+                            "border rounded-xl shadow-sm hover:bg-gray-50",
+                            "ring-offset-background transition-colors",
+                            "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
+                            "w-full p-4 text-left",
+                            isLoading && loadingQuestionIndex === index ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
+                          )}
+                        >
+                          <div className="flex items-center">
+                            <span className="text-sm text-gray-900">{question}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="w-full overflow-hidden">
+                    {renderConversations()}
+                    <div ref={messageEndRef} />
+                  </div>
+                )}
+              </div>
+            </main>
+
+            {!showInitialQuestions && (
+              <div className="fixed bottom-0 left-0 right-0 bg-white border-t">
+                <div className="w-full max-w-4xl mx-auto px-4">
+                  <SearchBar 
+                    loading={isLoading}
+                    searchQuery={searchQuery}
+                    processingQuery={processingQuery}
+                    onSearch={handleSearch}
+                    onNewConversation={handleNewConversation}
+                    setSearchQuery={setSearchQuery}
+                    className="py-6"
+                    isLarge={true}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -761,7 +805,8 @@ const SearchBar = ({
   onSearch, 
   onNewConversation, 
   setSearchQuery,
-  className 
+  className,
+  isLarge = false
 }: {
   loading: boolean;
   searchQuery: string;
@@ -770,42 +815,85 @@ const SearchBar = ({
   onNewConversation: () => void;
   setSearchQuery: (query: string) => void;
   className?: string;
+  isLarge?: boolean;
 }) => (
-  <form onSubmit={onSearch} className={cn("flex items-center gap-2", className)}>
-    <div className="relative flex-grow">
-      <div className="absolute left-2 top-1/2 -translate-y-1/2">
+  <div className="flex flex-col items-center w-full">
+    <div className={cn(
+      "w-full border rounded-[8px] flex items-center",
+      isLarge && "border-2"
+    )}>
+      <form onSubmit={onSearch} className={cn(
+        "flex w-full items-center gap-2 px-2",
+        isLarge && "py-2"
+      )}>
         <Button
-          type="button"
           onClick={onNewConversation}
           variant="ghost"
-          size="sm"
-          className="p-1 hover:bg-transparent"
+          size="icon"
+          className={cn(
+            "flex items-center justify-center flex-shrink-0",
+            isLarge ? "h-[48px] w-[48px]" : "h-[42px] w-[42px]"
+          )}
         >
-          <PlusCircle className="h-5 w-5 text-gray-400" />
+          <PlusCircle className={cn(
+            isLarge ? "h-6 w-6" : "h-5 w-5"
+          )} />
         </Button>
-      </div>
-      <Textarea
-        value={loading ? processingQuery : searchQuery}
-        onChange={(e) => !loading && setSearchQuery(e.target.value)}
-        placeholder="Ask your question..."
-        disabled={loading}
-        className="flex-grow resize-none min-h-[50px] py-3 pl-12 pr-12 border rounded-lg"
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            onSearch(e as any);
-          }
-        }}
-      />
-      <Button 
-        type="submit" 
-        className="absolute right-2 top-1/2 -translate-y-1/2 p-2" 
-        disabled={loading}
-      >
-        {loading ? <div className="animate-spin">⌛</div> : <ArrowRight className="h-5 w-5" />}
-      </Button>
+
+        <Textarea
+          value={loading ? processingQuery : searchQuery}
+          onChange={(e) => !loading && setSearchQuery(e.target.value)}
+          placeholder="Ask your question..."
+          className={cn(
+            "flex-grow",
+            "py-2 px-4",
+            isLarge ? "text-lg" : "text-base",
+            "transition-all duration-200 ease-out",
+            "placeholder:text-gray-500",
+            "focus:placeholder:opacity-0",
+            "resize-none",
+            "question-textarea",
+            "hide-scrollbar",
+            "border-none",
+            "focus:outline-none",
+            loading && "opacity-50",
+            !searchQuery && "flex items-center"
+          )}
+          style={{
+            minHeight: isLarge ? '48px' : '42px',
+            height: searchQuery ? 'auto' : isLarge ? '48px' : '42px',
+            resize: 'none',
+            lineHeight: '1.5',
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              onSearch(e as any);
+            }
+          }}
+        />
+
+        <Button
+          type="submit"
+          variant="ghost"
+          size="icon"
+          className={cn(
+            "flex items-center justify-center flex-shrink-0",
+            isLarge ? "h-[48px] w-[48px]" : "h-[42px] w-[42px]"
+          )}
+          disabled={loading}
+        >
+          {loading ? (
+            <span className="animate-spin">⌛</span>
+          ) : (
+            <ArrowRight className={cn(
+              isLarge ? "h-6 w-6" : "h-5 w-5"
+            )} />
+          )}
+        </Button>
+      </form>
     </div>
-  </form>
+  </div>
 );
 
 // ProcessingCard Component
