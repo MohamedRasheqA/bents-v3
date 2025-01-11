@@ -731,7 +731,38 @@ export default function ChatPage() {
   // Handlers
   const handleQuestionSelect = (question: string, index: number) => {
     setLoadingQuestionIndex(index);
-    handleSearch(null, index);
+    setProcessingQuery(question);
+    setShowInitialQuestions(false);
+    setLoadingProgress(0);
+    
+    // Create a div to show the processing UI
+    const processingDiv = (
+      <div className="w-full max-w-4xl mx-auto">
+        <div className="bg-white rounded-lg p-6 mb-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">A question creates knowledge</h2>
+          </div>
+          <div className="mt-4">
+            <div className="flex items-center gap-2">
+              <div className="flex-grow">
+                <p className="text-gray-800 break-words font-bold">{question}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <ProcessingCard 
+          query={question} 
+          loadingProgress={loadingProgress}
+          setLoadingProgress={setLoadingProgress}
+        />
+      </div>
+    );
+
+    // Show processing UI first
+    setCurrentConversation([]);
+    setTimeout(() => {
+      handleSearch(null, index);
+    }, 500);
   };
 
   const handleSessionSelect = (sessionId: string) => {
@@ -806,10 +837,10 @@ export default function ChatPage() {
                       {randomQuestions.map((question, index) => (
                         <button
                           key={index}
-                          onClick={(e) => handleSearch(e as any, index)}
+                          onClick={() => handleQuestionSelect(question, index)}
                           disabled={isLoading && loadingQuestionIndex === index}
                           className={cn(
-                            "flex-grow flex items-center bg-background",
+                            "flex items-center bg-background",
                             "border rounded-xl shadow-sm hover:bg-gray-50",
                             "ring-offset-background transition-colors",
                             "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
@@ -817,7 +848,10 @@ export default function ChatPage() {
                             isLoading && loadingQuestionIndex === index ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
                           )}
                         >
-                          <div className="flex items-center">
+                          <div className="flex items-center gap-2">
+                            <div className="flex-shrink-0">
+                              <PlusCircle className="h-5 w-5 text-gray-400" />
+                            </div>
                             <span className="text-sm text-gray-900">{question}</span>
                           </div>
                         </button>
@@ -965,7 +999,7 @@ const ProcessingCard = ({
   setLoadingProgress: React.Dispatch<React.SetStateAction<number>>
 }) => {
   const loadingCardRef = useRef<HTMLDivElement>(null);
-  const currentStep = Math.floor(loadingProgress / 25);
+  const currentStep = Math.min(Math.floor(loadingProgress / 25), 3);
 
   useEffect(() => {
     if (loadingCardRef.current) {
@@ -988,66 +1022,45 @@ const ProcessingCard = ({
   }, [loadingProgress, setLoadingProgress]);
 
   return (
-    <div className="flex justify-center w-full mb-4">
-      <div 
-        ref={loadingCardRef}
-        className="inline-flex flex-col bg-white rounded-lg shadow-sm p-6"
-      >
-        <div className="space-y-6">
-          <div className="flex items-center justify-between gap-8 mb-1">
-            <h2 className="text-xl font-semibold whitespace-nowrap">Processing Your Query</h2>
-            <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-500 border-t-transparent flex-shrink-0"></div>
-          </div>
-          
-          <div className="space-y-3">
-            {processingSteps.map((step, index) => {
-              const isComplete = index < currentStep;
-              const isCurrent = index === currentStep;
-              const isLast = index === processingSteps.length - 1;
-              
-              return (
-                <div key={step} className="relative">
-                  <div className="flex items-center gap-3">
-                    <div 
-                      className={cn(
-                        "w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0",
-                        isComplete ? "bg-blue-500" : 
-                        isCurrent ? "bg-blue-500" : 
-                        "bg-gray-200"
-                      )}
-                    >
-                      {isComplete ? (
-                        <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                        </svg>
-                      ) : isCurrent ? (
-                        <div className="w-2 h-2 bg-white rounded-full" />
-                      ) : (
-                        <div className="w-2 h-2 bg-gray-300 rounded-full" />
-                      )}
-                    </div>
-                    <span className={cn(
-                      "text-sm whitespace-nowrap",
-                      isComplete || isCurrent ? "text-gray-900" : "text-gray-400"
-                    )}>
-                      {step}
-                    </span>
-                  </div>
-                  
-                  {/* Vertical connecting line */}
-                  {!isLast && (
-                    <div 
-                      className={cn(
-                        "absolute left-3 ml-[-1px] w-0.5 h-3",
-                        isComplete ? "bg-blue-500" : "bg-gray-200"
-                      )} 
-                      style={{ top: '100%' }} 
-                    />
+    <div className="w-full bg-white rounded-lg p-6">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Processing Your Query</h2>
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-[rgba(23,155,215,255)] border-t-transparent"></div>
+        </div>
+        
+        <div className="space-y-4">
+          {processingSteps.map((step, index) => {
+            const isComplete = index < currentStep;
+            const isCurrent = index === currentStep;
+            
+            return (
+              <div key={step} className="flex items-center gap-3">
+                <div 
+                  className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center",
+                    isComplete || isCurrent ? "bg-[rgba(23,155,215,255)]" : "bg-gray-200"
+                  )}
+                >
+                  {isComplete ? (
+                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : isCurrent ? (
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                  ) : (
+                    <div className="w-2 h-2 bg-gray-400 rounded-full" />
                   )}
                 </div>
-              );
-            })}
-          </div>
+                <span className={cn(
+                  "text-base",
+                  isComplete || isCurrent ? "text-black font-medium" : "text-gray-400"
+                )}>
+                  {step}
+                </span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
