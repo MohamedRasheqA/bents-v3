@@ -2,8 +2,7 @@ import { ClerkProvider } from '@clerk/nextjs';
 import { Geist, Geist_Mono } from "next/font/google";
 import type { Metadata } from "next";
 import "./globals.css";
-import { initAmplitude } from '@/lib/amplitude';
-import AmplitudeAnalytics from '@/components/AmplitudeAnalytics';
+import { AmplitudeProvider } from '@/app/context/AmplitudeContext';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -14,11 +13,6 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
-
-// Initialize Amplitude on client side only
-if (typeof window !== 'undefined') {
-  initAmplitude();
-}
 
 export const metadata: Metadata = {
   title: "Bents Woodworking Assistant",
@@ -36,11 +30,10 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <head>
-          <AmplitudeAnalytics />
-        </head>
         <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-          {children}
+          <AmplitudeProvider>
+            {children}
+          </AmplitudeProvider>
         </body>
       </html>
     </ClerkProvider>

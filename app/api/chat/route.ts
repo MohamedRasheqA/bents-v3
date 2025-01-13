@@ -165,18 +165,7 @@ Response Structure and Formatting:
    - Keep all content within a bullet point on the same line
    - Any asterisks (*) in the content should be treated as literal characters, not formatting
 
-Formatting Example:
-### 1. **Main Point Title**
-    - Detailed explanation that includes practical context and thorough reasoning.
-      This should include specific examples or scenarios to illustrate the point.
-      Additional details can be added to ensure comprehensive understanding.
-### 2. **Second Point Title**
-    - First detailed explanation with practical application and context. This should
-      include why this point matters and how to implement it effectively. Include
-      specific examples that demonstrate the concept in action.
-    - Second explanation point with additional details and examples. Make sure to
-      provide clear reasoning and practical applications. Include specific scenarios
-      where this knowledge would be particularly useful.
+
 
 Remember:
 - You are speaking as Jason Bent's AI assistant and so if you are mentioning jason bent, you should use the word "Jason Bent" instead of "I" like "Jason Bent will suggest that you..."
@@ -212,12 +201,10 @@ export async function POST(req: Request) {
       if (relevanceResult === 'GREETING') {
         const result = await streamText({
           model: openai('gpt-4o-mini'),
-          messages: [
-            { 
-              role: 'user', 
-              content: `The following message is a greeting or casual message. Please provide a friendly and engaging response: ${lastUserMessage}` 
-            }
-          ],
+          messages: [{ 
+            role: 'user', 
+            content: `The following message is a greeting or casual message. Please provide a friendly and engaging response: ${lastUserMessage}` 
+          }],
         });
         return result.toDataStreamResponse();
       }
@@ -225,12 +212,10 @@ export async function POST(req: Request) {
       if (relevanceResult === 'INAPPROPRIATE') {
         const result = await streamText({
           model: openai('gpt-4o-mini'),
-          messages: [
-            {
-              role: 'user',
-              content: 'Please provide a polite response indicating that inappropriate content or language is not allowed.'
-            }
-          ],
+          messages: [{ 
+            role: 'user',
+            content: 'Please provide a polite response indicating that inappropriate content or language is not allowed.'
+          }],
         });
         return result.toDataStreamResponse();
       }
@@ -238,18 +223,16 @@ export async function POST(req: Request) {
       if (relevanceResult === 'NOT_RELEVANT') {
         const result = await streamText({
           model: openai('gpt-4o-mini'),
-          messages: [
-            {
-              role: 'user',
-              content: `The following message is not related to woodworking or our services. Please politely redirect the conversation: ${lastUserMessage}`
-            }
-          ],
+          messages: [{ 
+            role: 'user',
+            content: `The following message is not related to woodworking or our services. Please politely redirect the conversation: ${lastUserMessage}`
+          }],
         });
         return result.toDataStreamResponse();
       }
     }
 
-    // Add query rewriting
+    // Only proceed with DB search and links route for RELEVANT messages
     console.log('⏳ [POST] Rewriting query');
     const rewrittenQuery = await rewriteQuery(lastUserMessage, messages);
     console.log('✅ [POST] Query rewritten:', { 
@@ -279,6 +262,33 @@ export async function POST(req: Request) {
     const contextTexts = similarDocs.map(doc => 
       `Source: ${doc.title}\nContent: ${doc.text}`
     ).join('\n\n');
+
+    // Only make links request for RELEVANT messages that have context
+    if (relevanceResult === 'RELEVANT' && contextTexts) {
+      console.log('📤 [Chat] Sending data to links route:', {
+        messagesCount: messages.length,
+        contextLength: contextTexts.length,
+        rewrittenQuery
+      });
+
+      const linksResponse = await fetch(new URL('/api/links', req.url), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          context: contextTexts,
+          query: rewrittenQuery
+        })
+      });
+
+      const linksData = await linksResponse.json();
+      console.log('📥 [Chat] Received response from links route:', {
+        status: linksResponse.status,
+        hasVideoRefs: Boolean(linksData?.videoReferences),
+        hasProducts: Boolean(linksData?.relatedProducts)
+      });
+    }
 
     // Before final stream
     console.log('⏳ [POST] Streaming response');

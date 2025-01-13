@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { ArrowRight, PlusCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { ArrowRight, PlusCircle, ArrowDown } from 'lucide-react';
 import { useChat } from 'ai/react';
 import { Button } from "@/components/ui/button";
 import { v4 as uuidv4 } from 'uuid';
@@ -11,7 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 import Header from '@/components/Header';
 import YouTube from 'react-youtube';
-import ChatHistory from '@/components/ChatHistory';
+
 import { useSession } from '@/lib/hooks/useSession';
 
 // Types
@@ -154,6 +154,77 @@ const ProductCard = ({ product }: { product: Product }) => {
   );
 };
 
+// Updated FixedMarkdownRenderer component
+const FixedMarkdownRenderer = ({ content }: { content: string }) => (
+  <ReactMarkdown
+    className="markdown-content"
+    components={{
+      root: ({ children, ...props }) => (
+        <div className="w-full text-gray-800" {...props}>{children}</div>
+      ),
+      p: ({ children, ...props }) => (
+        <p 
+          className="text-base leading-relaxed mb-3"
+          style={{ fontFamily: systemFontFamily }}
+          {...props}
+        >
+          {children}
+        </p>
+      ),
+      pre: ({ children, ...props }) => (
+        <pre className="w-full p-4 rounded bg-gray-50 my-4 overflow-x-auto" {...props}>
+          {children}
+        </pre>
+      ),
+      code: ({ children, inline, ...props }) => (
+        inline ? 
+          <code className="px-1.5 py-0.5 rounded bg-gray-100 text-sm font-mono" {...props}>{children}</code> :
+          <code className="block w-full font-mono text-sm" {...props}>{children}</code>
+      ),
+      ul: ({ children, ...props }) => (
+        <ul className="list-disc pl-4 mb-3 space-y-1" {...props}>{children}</ul>
+      ),
+      ol: ({ children, ...props }) => (
+        <ol className="list-decimal pl-4 mb-3 space-y-1" {...props}>{children}</ol>
+      ),
+      li: ({ children, ...props }) => (
+        <li className="mb-1" {...props}>{children}</li>
+      ),
+      h1: ({ children, ...props }) => (
+        <h1 className="text-xl font-medium mb-3" {...props}>{children}</h1>
+      ),
+      h2: ({ children, ...props }) => (
+        <h2 className="text-lg font-medium mb-3" {...props}>{children}</h2>
+      ),
+      h3: ({ children, ...props }) => (
+        <h3 className="text-base font-medium mb-2" {...props}>{children}</h3>
+      ),
+      blockquote: ({ children, ...props }) => (
+        <blockquote 
+          className="border-l-4 border-gray-200 pl-4 my-4 italic"
+          {...props}
+        >
+          {children}
+        </blockquote>
+      ),
+      a: ({ children, href, ...props }) => (
+        <a 
+          href={href}
+          className="text-blue-600 hover:text-blue-800 underline"
+          target="_blank"
+          rel="noopener noreferrer"
+          {...props}
+        >
+          {children}
+        </a>
+      )
+    }}
+  >
+    {content}
+  </ReactMarkdown>
+);
+
+// Updated ConversationItem component
 const ConversationItem = ({ conv, index, isLatest }: { 
   conv: Conversation; 
   index: number; 
@@ -168,111 +239,27 @@ const ConversationItem = ({ conv, index, isLatest }: {
   }, [isLatest]);
 
   return (
-    <div ref={conversationRef} className="w-full max-w-full bg-white rounded-lg shadow-sm p-6 mb-4 overflow-hidden" style={{ fontFamily: systemFontFamily }}>
+    <div ref={conversationRef} className="w-full bg-white rounded-lg shadow-sm p-6 mb-4">
       {/* Question Section */}
       <div className="mb-4 pb-4 border-b">
         <div className="flex items-center gap-2">
-          <p className="text-gray-800 break-words font-bold" style={{ fontFamily: systemFontFamily }}>{conv.question}</p>
+          <p className="text-gray-800 break-words font-bold" style={{ fontFamily: systemFontFamily }}>
+            {conv.question}
+          </p>
         </div>
       </div>
 
-      {/* Answer Section - Updated for consistent containment */}
-      <div className="prose prose-sm max-w-none">
-        <div className="relative w-full overflow-hidden">
-          <div 
-            className="text-gray-800 font-normal"
-            style={{ 
-              fontFamily: systemFontFamily,
-              maxWidth: '100%',
-              wordBreak: 'break-word',
-              overflowWrap: 'break-word',
-              whiteSpace: 'pre-wrap'
-            }}
-          >
-            <ReactMarkdown
-              className="markdown-content"
-              components={{
-                root: ({ children, ...props }) => (
-                  <div className="w-full overflow-hidden" {...props}>{children}</div>
-                ),
-                pre: ({ children, ...props }) => (
-                  <pre 
-                    className="w-full p-2 rounded-lg my-1 whitespace-pre-wrap break-words overflow-x-auto"
-                    style={{
-                      maxWidth: '100%',
-                      wordBreak: 'break-word'
-                    }}
-                    {...props}
-                  >
-                    {children}
-                  </pre>
-                ),
-                code: ({ children, inline, ...props }) => (
-                  inline ? 
-                    <code 
-                      className="rounded px-1 whitespace-normal break-words" 
-                      style={{ wordBreak: 'break-word' }}
-                      {...props}
-                    >
-                      {children}
-                    </code> :
-                    <code 
-                      className="block w-full whitespace-pre-wrap break-words overflow-x-auto"
-                      style={{
-                        maxWidth: '100%',
-                        wordBreak: 'break-word'
-                      }}
-                      {...props}
-                    >
-                      {children}
-                    </code>
-                ),
-                p: ({ children, ...props }) => (
-                  <p 
-                    className="text-lg leading-relaxed w-full whitespace-pre-wrap break-words"
-                    style={{
-                      maxWidth: '100%',
-                      overflowWrap: 'break-word',
-                      wordBreak: 'break-word',
-                      fontFamily: systemFontFamily,
-                      fontWeight: 'normal',
-                      lineHeight: '1.5'
-                    }}
-                    {...props}
-                  >
-                    {children}
-                  </p>
-                ),
-                h1: ({ children, ...props }) => (
-                  <h1 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h1>
-                ),
-                h2: ({ children, ...props }) => (
-                  <h2 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h2>
-                ),
-                h3: ({ children, ...props }) => (
-                  <h3 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h3>
-                ),
-                ul: ({ children, ...props }) => (
-                  <ul className="text-lg list-disc pl-6 w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</ul>
-                ),
-                ol: ({ children, ...props }) => (
-                  <ol className="text-lg list-decimal pl-6 w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</ol>
-                ),
-                li: ({ children, ...props }) => (
-                  <li className="text-lg w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</li>
-                )
-              }}
-            >
-              {conv.text}
-            </ReactMarkdown>
-          </div>
-        </div>
+      {/* Answer Section - Simplified to match streaming format */}
+      <div className="prose prose-sm max-w-none mb-4">
+        <FixedMarkdownRenderer content={conv.text} />
       </div>
 
       {/* Videos Section */}
       {conv.videoLinks && Object.keys(conv.videoLinks).length > 0 && (
-        <div className="mt-4 overflow-hidden">
-          <h3 className="text-base font-semibold mb-3" style={{ fontFamily: systemFontFamily }}>Related Videos</h3>
+        <div className="mt-6">
+          <h3 className="text-base font-semibold mb-3" style={{ fontFamily: systemFontFamily }}>
+            Related Videos
+          </h3>
           <div className="flex overflow-x-auto space-x-4 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {Object.entries(conv.videoLinks).map(([key, info]) => {
               const videoId = getYoutubeVideoId(info.urls[0]);
@@ -294,11 +281,11 @@ const ConversationItem = ({ conv, index, isLatest }: {
                     />
                   </div>
                   <div className="p-3">
-                    <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2 break-words" style={{ fontFamily: systemFontFamily }}>
+                    <h4 className="text-sm font-medium text-gray-900 line-clamp-2 mb-2" style={{ fontFamily: systemFontFamily }}>
                       {info.video_title}
                     </h4>
                     {info.description && (
-                      <p className="text-sm text-gray-600 line-clamp-2 mb-2 break-words" style={{ fontFamily: systemFontFamily }}>
+                      <p className="text-sm text-gray-600 line-clamp-2 mb-2" style={{ fontFamily: systemFontFamily }}>
                         {info.description}
                       </p>
                     )}
@@ -315,8 +302,10 @@ const ConversationItem = ({ conv, index, isLatest }: {
 
       {/* Products Section */}
       {conv.related_products && conv.related_products.length > 0 && (
-        <div className="mt-4 overflow-hidden">
-          <h3 className="text-base font-semibold mb-3" style={{ fontFamily: systemFontFamily }}>Related Products</h3>
+        <div className="mt-6">
+          <h3 className="text-base font-semibold mb-3" style={{ fontFamily: systemFontFamily }}>
+            Related Products
+          </h3>
           <div className="flex overflow-x-auto space-x-4 pb-2 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
             {conv.related_products.map((product, idx) => (
               <ProductCard key={idx} product={product} />
@@ -324,6 +313,85 @@ const ConversationItem = ({ conv, index, isLatest }: {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+// Add ProcessingCard component near other component definitions
+const ProcessingCard = ({ 
+  query, 
+  loadingProgress, 
+  setLoadingProgress 
+}: { 
+  query: string, 
+  loadingProgress: number,
+  setLoadingProgress: React.Dispatch<React.SetStateAction<number>>
+}) => {
+  const loadingCardRef = useRef<HTMLDivElement>(null);
+  const currentStep = Math.min(Math.floor(loadingProgress / 25), 3);
+
+  useEffect(() => {
+    if (loadingCardRef.current) {
+      setTimeout(() => {
+        loadingCardRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'start'
+        });
+      }, 100);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loadingProgress < 100) {
+      const timer = setTimeout(() => {
+        setLoadingProgress(prev => Math.min(prev + 1, 100));
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [loadingProgress, setLoadingProgress]);
+
+  return (
+    <div ref={loadingCardRef} className="w-full bg-white rounded-lg p-6 mb-4">
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-semibold">Processing Your Query</h2>
+          <div className="animate-spin rounded-full h-6 w-6 border-2 border-[rgba(23,155,215,255)] border-t-transparent"></div>
+        </div>
+        
+        <div className="space-y-4">
+          {processingSteps.map((step, index) => {
+            const isComplete = index < currentStep;
+            const isCurrent = index === currentStep;
+            
+            return (
+              <div key={step} className="flex items-center gap-3">
+                <div 
+                  className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center",
+                    isComplete || isCurrent ? "bg-[rgba(23,155,215,255)]" : "bg-gray-200"
+                  )}
+                >
+                  {isComplete ? (
+                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  ) : isCurrent ? (
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                  ) : (
+                    <div className="w-2 h-2 bg-gray-400 rounded-full" />
+                  )}
+                </div>
+                <span className={cn(
+                  "text-base",
+                  isComplete || isCurrent ? "text-black font-medium" : "text-gray-400"
+                )}>
+                  {step}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 };
@@ -365,6 +433,13 @@ export default function ChatPage() {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const currentQuestionRef = useRef<string>("");
 
+  // Add new refs and state for scrolling
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [userHasScrolled, setUserHasScrolled] = useState(false);
+  const lastScrollPosition = useRef(0);
+
   const { messages, append, isLoading } = useChat({
     api: '/api/chat',
     initialMessages: [],
@@ -393,13 +468,7 @@ export default function ChatPage() {
         console.log('Starting second API call with question:', currentQuestion);
 
         const requestPayload = {
-          messages: [{
-              role: 'user', 
-            content: currentQuestion,
-          }, {
-            role: 'assistant',
-            content: message.content
-          }]
+          answer: message.content
         };
 
         const linksResponse = await axios.post('/api/links', requestPayload);
@@ -450,6 +519,72 @@ export default function ChatPage() {
     }
   });
 
+  // Add check if near bottom function
+  const checkIfNearBottom = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return true;
+    
+    const threshold = 100; // pixels from bottom
+    const position = container.scrollHeight - container.scrollTop - container.clientHeight;
+    return position < threshold;
+  }, []);
+
+  const handleScroll = useCallback(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Detect if user is scrolling up
+    if (container.scrollTop < lastScrollPosition.current) {
+      setUserHasScrolled(true);
+      setIsAutoScrollEnabled(false);
+    }
+
+    // Show/hide scroll button based on position
+    setShowScrollButton(!checkIfNearBottom());
+    lastScrollPosition.current = container.scrollTop;
+  }, [checkIfNearBottom]);
+
+  const scrollToBottom = () => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    setIsAutoScrollEnabled(true);
+    setUserHasScrolled(false);
+    
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth'
+    });
+  };
+
+  // Add these useEffects:
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container || !isStreaming || !isAutoScrollEnabled) return;
+
+    container.scrollTo({
+      top: container.scrollHeight,
+      behavior: 'smooth'
+    });
+  }, [isStreaming, isAutoScrollEnabled]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, [handleScroll]);
+
+  useEffect(() => {
+    if (isStreaming) {
+      setIsAutoScrollEnabled(!userHasScrolled);
+    } else {
+      setUserHasScrolled(false);
+      setIsAutoScrollEnabled(true);
+    }
+  }, [isStreaming]);
+
   // Update handleSearch
   const handleSearch = async (e: React.FormEvent | null, index?: number) => {
     if (e) e.preventDefault();
@@ -462,6 +597,9 @@ export default function ChatPage() {
     setShowInitialQuestions(false);
     
     try {
+      // Keep existing conversations visible
+      // Don't clear currentConversation here
+      
       await append({
         role: 'user',
         content: query,
@@ -469,6 +607,11 @@ export default function ChatPage() {
       });
 
       setSearchQuery("");
+      
+      // Scroll to the processing card smoothly
+      setTimeout(() => {
+        messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 100);
     } catch (error) {
       console.error('Search Error:', error);
       setError('Error processing your request');
@@ -527,151 +670,83 @@ export default function ChatPage() {
     </div>
   );
 
-  // Render all conversations including history
+  // Replace the existing renderConversations function
   const renderConversations = () => (
-    <div className="w-full">
-      {currentConversation.map((conv, index) => (
-        <ConversationItem 
-          key={conv.id}
-          conv={conv}
-          index={index}
-          isLatest={index === currentConversation.length - 1}
-        />
-      ))}
-      {isLoading && !isStreaming && (
-        <ProcessingCard 
-          query={processingQuery} 
-          loadingProgress={loadingProgress}
-          setLoadingProgress={setLoadingProgress}
-        />
-      )}
-      {(isStreaming || isSecondResponseLoading) && processingQuery && messages.length > 0 && (
-        <div className="w-full bg-white rounded-lg shadow-sm p-6 mb-4 overflow-hidden">
-          {isStreaming && (
+    <div className="relative">
+      <div
+        ref={containerRef}
+        className="w-full overflow-y-auto scrollbar-none"
+        style={{ 
+          height: 'calc(100vh - 200px)',
+          paddingBottom: '80px',
+          msOverflowStyle: 'none',
+          scrollbarWidth: 'none'
+        }}
+      >
+        <style jsx global>{`
+          div::-webkit-scrollbar {
+            display: none;
+          }
+        `}</style>
+
+        {/* Existing conversation items */}
+        {currentConversation.map((conv, index) => (
+          <ConversationItem 
+            key={conv.id}
+            conv={conv}
+            index={index}
+            isLatest={false}
+          />
+        ))}
+
+        {/* Show ProcessingCard during initial loading */}
+        {isLoading && !isStreaming && (
+          <ProcessingCard 
+            query={processingQuery}
+            loadingProgress={loadingProgress}
+            setLoadingProgress={setLoadingProgress}
+          />
+        )}
+
+        {/* Streaming response */}
+        {(isStreaming || isSecondResponseLoading) && messages.length > 0 && (
+          <div className="w-full bg-white rounded-lg shadow-sm p-6 mb-4">
+            {/* Question Section */}
             <div className="mb-4 pb-4 border-b">
               <div className="flex items-center gap-2">
-                <p className="text-gray-800 break-words font-bold" style={{ fontFamily: systemFontFamily }}>{processingQuery}</p>
+                <p className="text-gray-800 break-words font-bold" style={{ fontFamily: systemFontFamily }}>
+                  {processingQuery}
+                </p>
               </div>
             </div>
-          )}
-          {/* Answer Section */}
-          <div className="prose prose-sm max-w-none overflow-hidden">
-            <div className="w-full overflow-hidden">
-              <ReactMarkdown
-                className="markdown-content break-words whitespace-pre-wrap overflow-hidden"
-                components={{
-                  root: ({ children, ...props }) => (
-                    <div className="w-full overflow-hidden" {...props}>{children}</div>
-                  ),
-                  pre: ({ children, ...props }) => (
-                    <pre 
-                      className="w-full p-2 rounded-lg my-1 whitespace-pre-wrap break-words overflow-x-auto"
-                      style={{
-                        maxWidth: '100%',
-                        wordBreak: 'break-word'
-                      }}
-                      {...props}
-                    >
-                      {children}
-                    </pre>
-                  ),
-                  code: ({ children, inline, ...props }) => (
-                    inline ? 
-                      <code 
-                        className="rounded px-1 whitespace-normal break-words" 
-                        style={{ wordBreak: 'break-word' }}
-                        {...props}
-                      >
-                        {children}
-                      </code> :
-                      <code 
-                        className="block w-full whitespace-pre-wrap break-words overflow-x-auto"
-                        style={{
-                          maxWidth: '100%',
-                          wordBreak: 'break-word'
-                        }}
-                        {...props}
-                      >
-                        {children}
-                      </code>
-                  ),
-                  p: ({ children, ...props }) => (
-                    <p 
-                      className="text-lg leading-relaxed w-full whitespace-pre-wrap break-words"
-                      style={{
-                        maxWidth: '100%',
-                        overflowWrap: 'break-word',
-                        wordBreak: 'break-word',
-                        fontFamily: systemFontFamily,
-                        fontWeight: 'normal',
-                        lineHeight: '1.5'
-                      }}
-                      {...props}
-                    >
-                      {children}
-                    </p>
-                  ),
-                  h1: ({ children, ...props }) => (
-                    <h1 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h1>
-                  ),
-                  h2: ({ children, ...props }) => (
-                    <h2 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h2>
-                  ),
-                  h3: ({ children, ...props }) => (
-                    <h3 className="text-lg font-medium w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</h3>
-                  ),
-                  ul: ({ children, ...props }) => (
-                    <ul className="text-lg list-disc pl-6 w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</ul>
-                  ),
-                  ol: ({ children, ...props }) => (
-                    <ol className="text-lg list-decimal pl-6 w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</ol>
-                  ),
-                  li: ({ children, ...props }) => (
-                    <li className="text-lg w-full break-words" style={{ fontFamily: systemFontFamily, lineHeight: '1.5' }} {...props}>{children}</li>
-                  )
-                }}
-              >
-                {messages[messages.length - 1].content}
-              </ReactMarkdown>
+
+            {/* Streaming Answer Section */}
+            <div className="prose prose-sm max-w-none mb-4">
+              <div className="text-base leading-relaxed" style={{ fontFamily: systemFontFamily }}>
+                <FixedMarkdownRenderer content={messages[messages.length - 1].content} />
+              </div>
             </div>
+
+            {/* Loading state for additional content */}
+            {isSecondResponseLoading && (
+              <div className="mt-6">
+                <LoadingState />
+              </div>
+            )}
           </div>
+        )}
 
-          {/* Show skeleton loaders during second API call */}
-          {isSecondResponseLoading && (
-            <div className="mt-4 border-t pt-4">
-              {/* Videos skeleton */}
-              <div className="mb-4">
-                <h3 className="text-base font-semibold mb-3">Related Videos</h3>
-                <div className="flex overflow-x-auto space-x-4">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="flex-none w-[280px] bg-white border rounded-lg overflow-hidden">
-                      <div className="aspect-video w-full bg-gray-200 animate-pulse" />
-                      <div className="p-3">
-                        <div className="h-4 bg-gray-200 rounded animate-pulse mb-2" />
-                        <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3" />
-                        <div className="mt-2 h-3 bg-gray-200 rounded animate-pulse w-1/3" />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Products skeleton */}
-              <div>
-                <h3 className="text-base font-semibold mb-3">Related Products</h3>
-                <div className="flex overflow-x-auto space-x-4">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="flex-none min-w-[180px] bg-white border rounded-lg px-4 py-3">
-                      <div className="h-4 bg-gray-200 rounded animate-pulse mb-2" />
-                      <div className="h-4 bg-gray-200 rounded animate-pulse w-2/3" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+        {/* Floating scroll button */}
+        {showScrollButton && (isStreaming || isSecondResponseLoading) && (
+          <button
+            onClick={scrollToBottom}
+            className="fixed bottom-24 right-8 bg-gray-800 text-white rounded-full p-3 shadow-lg hover:bg-gray-700 transition-colors z-50 flex items-center gap-2"
+          >
+            <ArrowDown className="w-5 h-5" />
+            <span className="text-sm font-medium pr-2">New content</span>
+          </button>
+        )}
+      </div>
     </div>
   );
 
@@ -734,35 +809,12 @@ export default function ChatPage() {
     setProcessingQuery(question);
     setShowInitialQuestions(false);
     setLoadingProgress(0);
+    setCurrentConversation([]); // Clear existing conversations
     
-    // Create a div to show the processing UI
-    const processingDiv = (
-      <div className="w-full max-w-4xl mx-auto">
-        <div className="bg-white rounded-lg p-6 mb-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-semibold">A question creates knowledge</h2>
-          </div>
-          <div className="mt-4">
-            <div className="flex items-center gap-2">
-              <div className="flex-grow">
-                <p className="text-gray-800 break-words font-bold">{question}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-        <ProcessingCard 
-          query={question} 
-          loadingProgress={loadingProgress}
-          setLoadingProgress={setLoadingProgress}
-        />
-      </div>
-    );
-
-    // Show processing UI first
-    setCurrentConversation([]);
+    // Delay the search to allow UI to update
     setTimeout(() => {
       handleSearch(null, index);
-    }, 500);
+    }, 100);
   };
 
   const handleSessionSelect = (sessionId: string) => {
@@ -778,7 +830,7 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col min-h-screen bg-[#F8F9FA]">
       <div className="fixed inset-0 overflow-hidden">
-        <div className="absolute inset-0 overflow-y-auto">
+        <div className="absolute inset-0">
           <div className="min-h-screen">
             <Header 
               sessions={sessions}
@@ -811,10 +863,10 @@ export default function ChatPage() {
               "flex-grow w-full",
               "flex flex-col items-center",
               "pt-32 px-4",
-              currentConversation.length > 0 ? "pb-[80px]" : "min-h-[calc(100vh-64px)]",
             )}>
               <div className="w-full max-w-5xl mx-auto">
-                {showInitialQuestions ? (
+                {currentConversation.length === 0 && showInitialQuestions && !isStreaming && !isLoading ? (
+                  // Initial questions view (only show if no conversations exist)
                   <div className="w-full min-h-[calc(100vh-200px)] flex flex-col items-center justify-center">
                     <div className="text-center mb-8">
                       <h1 className="text-2xl font-semibold text-gray-900">
@@ -833,36 +885,30 @@ export default function ChatPage() {
                       />
                     </div>
 
-                    <div className="w-full max-w-4xl grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 px-4">
+                    <div className="w-full max-w-2xl grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 mx-auto px-2">
                       {randomQuestions.map((question, index) => (
                         <button
                           key={index}
                           onClick={() => handleQuestionSelect(question, index)}
                           disabled={isLoading && loadingQuestionIndex === index}
                           className={cn(
-                            "flex items-center bg-background",
-                            "border rounded-xl shadow-sm hover:bg-gray-50",
+                            "flex items-center",
+                            "border rounded-xl shadow-sm hover:bg-[#F9FAFB]",
                             "ring-offset-background transition-colors",
                             "focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2",
                             "w-full p-4 text-left",
+                            "bg-transparent",
                             isLoading && loadingQuestionIndex === index ? "opacity-70 cursor-not-allowed" : "cursor-pointer"
                           )}
                         >
-                          <div className="flex items-center gap-2">
-                            <div className="flex-shrink-0">
-                              <PlusCircle className="h-5 w-5 text-gray-400" />
-                            </div>
-                            <span className="text-sm text-gray-900">{question}</span>
-                          </div>
+                          <span className="text-sm text-gray-900">{question}</span>
                         </button>
                       ))}
                     </div>
                   </div>
                 ) : (
-                  <div className="w-full overflow-hidden">
-                    {renderConversations()}
-                    <div ref={messageEndRef} />
-                  </div>
+                  // Updated conversations view with enhanced scrolling
+                  renderConversations()
                 )}
               </div>
             </main>
@@ -898,7 +944,8 @@ const SearchBar = ({
   onNewConversation, 
   setSearchQuery,
   className,
-  isLarge = false
+  isLarge = false,
+  disabled = false
 }: {
   loading: boolean;
   searchQuery: string;
@@ -908,161 +955,114 @@ const SearchBar = ({
   setSearchQuery: (query: string) => void;
   className?: string;
   isLarge?: boolean;
-}) => (
-  <div className="flex flex-col items-center w-full">
-    <div className={cn(
-      "w-full border rounded-[8px] flex items-center",
-      isLarge && "border-2"
-    )}>
-      <form onSubmit={onSearch} className={cn(
-        "flex w-full items-center gap-2 px-2",
-        isLarge && "py-2"
-      )}>
-        <Button
-          onClick={onNewConversation}
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "flex items-center justify-center flex-shrink-0",
-            isLarge ? "h-[48px] w-[48px]" : "h-[42px] w-[42px]"
-          )}
-        >
-          <PlusCircle className={cn(
-            isLarge ? "h-6 w-6" : "h-5 w-5"
-          )} />
-        </Button>
-
-        <Textarea
-          value={loading ? processingQuery : searchQuery}
-          onChange={(e) => !loading && setSearchQuery(e.target.value)}
-          placeholder="Ask your question..."
-          className={cn(
-            "flex-grow",
-            "py-2 px-4",
-            isLarge ? "text-lg" : "text-base",
-            "transition-all duration-200 ease-out",
-            "placeholder:text-gray-500",
-            "focus:placeholder:opacity-0",
-            "resize-none",
-            "question-textarea",
-            "hide-scrollbar",
-            "border-none",
-            "focus:outline-none",
-            loading && "opacity-50",
-            !searchQuery && "flex items-center"
-          )}
-          style={{
-            minHeight: isLarge ? '48px' : '42px',
-            height: searchQuery ? 'auto' : isLarge ? '48px' : '42px',
-            resize: 'none',
-            lineHeight: '1.5',
-          }}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-              e.preventDefault();
-              onSearch(e as any);
-            }
-          }}
-        />
-
-        <Button
-          type="submit"
-          variant="ghost"
-          size="icon"
-          className={cn(
-            "flex items-center justify-center flex-shrink-0",
-            isLarge ? "h-[48px] w-[48px]" : "h-[42px] w-[42px]"
-          )}
-          disabled={loading}
-        >
-          {loading ? (
-            <span className="animate-spin">⌛</span>
-          ) : (
-            <ArrowRight className={cn(
-              isLarge ? "h-6 w-6" : "h-5 w-5"
-            )} />
-          )}
-        </Button>
-      </form>
-    </div>
-  </div>
-);
-
-// ProcessingCard Component
-const ProcessingCard = ({ 
-  query, 
-  loadingProgress, 
-  setLoadingProgress 
-}: { 
-  query: string, 
-  loadingProgress: number,
-  setLoadingProgress: React.Dispatch<React.SetStateAction<number>>
+  disabled?: boolean;
 }) => {
-  const loadingCardRef = useRef<HTMLDivElement>(null);
-  const currentStep = Math.min(Math.floor(loadingProgress / 25), 3);
-
-  useEffect(() => {
-    if (loadingCardRef.current) {
-      setTimeout(() => {
-        loadingCardRef.current?.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start'
-        });
-      }, 100);
+  // Add handler for key press
+  const handleKeyPress = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!loading && searchQuery.trim()) {
+        onSearch(e);
+      }
     }
-  }, []);
-
-  useEffect(() => {
-    if (loadingProgress < 100) {
-      const timer = setTimeout(() => {
-        setLoadingProgress(prev => Math.min(prev + 1, 100));
-      }, 50);
-      return () => clearTimeout(timer);
-    }
-  }, [loadingProgress, setLoadingProgress]);
+  };
 
   return (
-    <div className="w-full bg-white rounded-lg p-6">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Processing Your Query</h2>
-          <div className="animate-spin rounded-full h-6 w-6 border-2 border-[rgba(23,155,215,255)] border-t-transparent"></div>
-        </div>
-        
-        <div className="space-y-4">
-          {processingSteps.map((step, index) => {
-            const isComplete = index < currentStep;
-            const isCurrent = index === currentStep;
-            
-            return (
-              <div key={step} className="flex items-center gap-3">
-                <div 
-                  className={cn(
-                    "w-6 h-6 rounded-full flex items-center justify-center",
-                    isComplete || isCurrent ? "bg-[rgba(23,155,215,255)]" : "bg-gray-200"
-                  )}
-                >
-                  {isComplete ? (
-                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                    </svg>
-                  ) : isCurrent ? (
-                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
-                  ) : (
-                    <div className="w-2 h-2 bg-gray-400 rounded-full" />
-                  )}
-                </div>
-                <span className={cn(
-                  "text-base",
-                  isComplete || isCurrent ? "text-black font-medium" : "text-gray-400"
-                )}>
-                  {step}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+    <div className="flex flex-col p-2 items-center w-full">
+      <div className={cn(
+        "w-full border rounded-[8px] flex items-center overflow-hidden",
+        isLarge && "border-2",
+        disabled && "bg-gray-50"
+      )}>
+        <form onSubmit={onSearch} className={cn(
+          "flex w-full items-center gap-2 px-2",
+          isLarge && "py-2"
+        )}>
+          <Button
+            onClick={onNewConversation}
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "flex items-center justify-center flex-shrink-0",
+              isLarge ? "h-[48px] w-[48px]" : "h-[42px] w-[42px]"
+            )}
+            disabled={disabled}
+          >
+            <PlusCircle className={cn(
+              isLarge ? "h-6 w-6" : "h-5 w-5",
+              disabled && "text-gray-400"
+            )} />
+          </Button>
+
+          <Textarea
+            value={loading ? processingQuery : searchQuery}
+            onChange={(e) => !loading && setSearchQuery(e.target.value)}
+            onKeyDown={handleKeyPress}
+            placeholder="Ask your question..."
+            disabled={disabled}
+            className={cn(
+              "flex-grow",
+              isLarge ? "text-lg" : "text-base",
+              "transition-all duration-200 ease-out",
+              "placeholder:text-gray-500",
+              "focus:placeholder:opacity-0",
+              "resize-none",
+              "question-textarea",
+              "hide-scrollbar",
+              "border-none",
+              "focus:outline-none",
+              "focus:ring-0",
+              "focus-visible:ring-0",
+              "focus-visible:outline-none",
+              "focus:border-0",
+              "active:outline-none",
+              "active:ring-0",
+              "touch-none",
+              "outline-none",
+              "flex items-center",
+              "py-0",
+              "scrollbar-none",
+              "overflow-hidden",
+              loading && "opacity-50",
+              disabled && "bg-transparent cursor-default"
+            )}
+            style={{
+              minHeight: isLarge ? '48px' : '42px',
+              height: searchQuery ? 'auto' : isLarge ? '48px' : '42px',
+              resize: 'none',
+              lineHeight: '1.5',
+              outline: 'none',
+              boxShadow: 'none',
+              paddingTop: isLarge ? '12px' : '10px',
+              paddingBottom: isLarge ? '12px' : '10px',
+              overflow: 'hidden',
+              msOverflowStyle: 'none',
+              scrollbarWidth: 'none'
+            }}
+          />
+
+          <Button
+            type="submit"
+            variant="ghost"
+            size="icon"
+            className={cn(
+              "flex items-center justify-center flex-shrink-0",
+              isLarge ? "h-[48px] w-[48px]" : "h-[42px] w-[42px]"
+            )}
+            disabled={loading || disabled}
+          >
+            {loading ? (
+              <span className="animate-spin">⌛</span>
+            ) : (
+              <ArrowRight className={cn(
+                isLarge ? "h-6 w-6" : "h-5 w-5",
+                disabled && "text-gray-400"
+              )} />
+            )}
+          </Button>
+        </form>
       </div>
     </div>
   );
 };
+
