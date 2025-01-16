@@ -11,7 +11,7 @@ import ReactMarkdown from 'react-markdown';
 import axios from 'axios';
 import Header from '@/components/Header';
 import YouTube from 'react-youtube';
-
+import { useAuth } from '@clerk/nextjs';
 import { useSession } from '@/lib/hooks/useSession';
 
 // Types
@@ -398,6 +398,7 @@ const ProcessingCard = ({
 
 // Main Chat Page Component
 export default function ChatPage() {
+  const { userId = null } = useAuth();
   const {
     sessions,
     setSessions,
@@ -409,10 +410,144 @@ export default function ChatPage() {
 
   // Initialize with empty values
   const [currentConversation, setCurrentConversation] = useState<Conversation[]>([]);
-
+  
   // Error states
   const [error, setError] = useState<string | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
+
+  // Add recovery mechanism
+  const recoverState = useCallback(async () => {
+    if (!userId) return;
+    
+    try {
+      const response = await axios.get('/api/get-session', {
+        headers: {
+          'x-user-id': userId
+        }
+      });
+
+      if (Array.isArray(response.data) && response.data.length > 0) {
+        setSessions(response.data);
+        const lastSession = response.data[response.data.length - 1];
+        setCurrentSessionId(lastSession.id);
+        setCurrentConversation(lastSession.conversations || []);
+        setShowInitialQuestions(!(lastSession.conversations?.length > 0));
+      }
+    } catch (error) {
+      console.error('Failed to recover state:', error);
+      setError('Failed to load chat history');
+    }
+  }, [userId, setSessions, setCurrentSessionId]);
+
+  // Add effect to create new session on page load/refresh
+  useEffect(() => {
+    if (userId) {
+      // Clear any existing session data first
+      setCurrentConversation([]);
+      setShowInitialQuestions(true);
+      setProcessingQuery("");
+      setSearchQuery("");
+      setLoadingProgress(0);
+      setIsStreaming(false);
+      
+      // Create a new session
+      const initializeNewSession = async () => {
+        try {
+          const newSessionId = uuidv4();
+          const newSession: Session = {
+            id: newSessionId,
+            conversations: []
+          };
+
+          if (userId) {
+            const response = await axios.post('/api/set-session', {
+              sessions: [newSession]
+            }, {
+              headers: {
+                'x-user-id': userId
+              }
+            });
+
+            if (response.data.success) {
+              setSessions([newSession]);
+              setCurrentSessionId(newSessionId);
+              setShowInitialQuestions(true);
+              currentQuestionRef.current = "";
+            } else {
+              throw new Error('Failed to create new session');
+            }
+          }
+        } catch (error) {
+          console.error('Error initializing new session:', error);
+          setError('Failed to create new session');
+          
+          // Try to recover state
+          await recoverState();
+        }
+      };
+
+      initializeNewSession();
+    }
+  }, [userId]); // Only depend on userId
+
+  // Update manageSession
+  const manageSession = useCallback(async () => {
+    try {
+      // Clear existing state
+      setCurrentConversation([]);
+      setShowInitialQuestions(true);
+      setProcessingQuery("");
+      setSearchQuery("");
+      
+      const newSessionId = uuidv4();
+      const newSession: Session = {
+        id: newSessionId,
+        conversations: []
+      };
+
+      if (userId) {
+        const response = await axios.post('/api/set-session', {
+          sessions: [newSession]
+        }, {
+          headers: {
+            'x-user-id': userId
+          }
+        });
+
+        if (response.data.success) {
+          setSessions(prevSessions => [...prevSessions, newSession]);
+          setCurrentSessionId(newSessionId);
+          setShowInitialQuestions(true);
+          currentQuestionRef.current = "";
+        } else {
+          throw new Error('Failed to save new session');
+        }
+      } else {
+        setSessions(prevSessions => [...prevSessions, newSession]);
+        setCurrentSessionId(newSessionId);
+        setShowInitialQuestions(true);
+        currentQuestionRef.current = "";
+      }
+    } catch (error) {
+      console.error('Error in manageSession:', error);
+      setError('Failed to create new session');
+      
+      // Try to recover state
+      await recoverState();
+    }
+  }, [userId, setSessions, setCurrentSessionId, recoverState]);
+
+  // Update handleNewConversation to use manageSession
+  const handleNewConversation = useCallback(() => {
+    manageSession();
+  }, [manageSession]);
+
+  // Add effect to create new session on page load/refresh
+  useEffect(() => {
+    if (userId) {
+      manageSession();
+    }
+  }, [userId, manageSession]);
 
   // Other states
   const [showInitialQuestions, setShowInitialQuestions] = useState(true);
@@ -444,43 +579,31 @@ export default function ChatPage() {
     api: '/api/chat',
     initialMessages: [],
     onResponse: (response) => {
-      console.log('First API Response:', response);
       setIsStreaming(true);
       setLoadingProgress(3);
       setError(null);
       setWsError(null);
     },
     onFinish: async (message) => {
-      console.log('First API Finished:', message);
-      const currentQuestion = currentQuestionRef.current;
-      console.log('Current question from ref:', currentQuestion);
-      
       setIsStreaming(false);
       
-      if (!currentQuestion?.trim()) {
-        console.log('No question available in ref');
+      const currentQuestion = currentQuestionRef.current;
+      if (!currentQuestion?.trim() || !currentSessionId) {
         return;
       }
-  
-      // Start second API call
+      
       setIsSecondResponseLoading(true);
       try {
-        console.log('Starting second API call with question:', currentQuestion);
-
-        const requestPayload = {
+        const linksResponse = await axios.post('/api/links', {
           answer: message.content
-        };
-
-        const linksResponse = await axios.post('/api/links', requestPayload);
-        console.log('Links API Response:', linksResponse.data);
+        });
         
-          if (linksResponse.data.status === 'not_relevant') {
-            console.log('Query marked as not relevant');
+        if (linksResponse.data.status === 'not_relevant') {
           setIsSecondResponseLoading(false);
-            return;
+          return;
         }
-
-        // Update conversation history with complete response
+        
+        // Create new conversation
         const newConversation = {
           id: uuidv4(),
           question: currentQuestion,
@@ -489,29 +612,39 @@ export default function ChatPage() {
           videoLinks: linksResponse.data.videoReferences || {},
           related_products: linksResponse.data.relatedProducts || []
         };
-        
-        setCurrentConversation(prev => [...prev, newConversation]);
-        setSessions(prev =>
-          prev.map(session =>
-            session.id === currentSessionId
-              ? { ...session, conversations: [...session.conversations, newConversation] }
-              : session
-          )
-        );
 
-      } catch (error) {
-        console.error('Error in second API:', error);
-        if (axios.isAxiosError(error)) {
-          console.error('Axios Error Details:', {
-            response: error.response?.data,
-            status: error.response?.status,
-            message: error.message
-          });
-          setError(`Error: ${error.response?.data?.message || error.message}`);
-        } else {
-          console.error('Non-Axios Error:', error);
-          setError('Error fetching related links and products');
+        // Find and update the current session
+        const currentSession = sessions.find(s => s.id === currentSessionId);
+        if (currentSession) {
+          const updatedSession = {
+            ...currentSession,
+            conversations: [...(currentSession.conversations || []), newConversation]
+          };
+          
+          try {
+            // Save to database first
+            if (userId) {
+              await saveSessionsToDB([updatedSession]);
+            }
+            
+            // Only update local state if save was successful
+            setSessions(prevSessions => 
+              prevSessions.map(s => 
+                s.id === currentSessionId ? updatedSession : s
+              )
+            );
+            setCurrentConversation(updatedSession.conversations);
+          } catch (error) {
+            console.error('Failed to save session:', error);
+            // Try to recover state
+            await recoverState();
+          }
         }
+      } catch (error) {
+        console.error('Error in onFinish:', error);
+        setError('Error updating chat history');
+        // Try to recover state
+        await recoverState();
       } finally {
         setIsSecondResponseLoading(false);
         setProcessingQuery("");
@@ -597,8 +730,10 @@ export default function ChatPage() {
     setShowInitialQuestions(false);
     
     try {
-      // Keep existing conversations visible
-      // Don't clear currentConversation here
+      // If there's no current session, create one
+      if (!currentSessionId) {
+        await manageSession();
+      }
       
       await append({
         role: 'user',
@@ -608,7 +743,6 @@ export default function ChatPage() {
 
       setSearchQuery("");
       
-      // Scroll to the processing card smoothly
       setTimeout(() => {
         messageEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }, 100);
@@ -616,18 +750,6 @@ export default function ChatPage() {
       console.error('Search Error:', error);
       setError('Error processing your request');
     }
-  };
-
-  // Handle new conversation creation
-  const handleNewConversation = () => {
-    const newSessionId = uuidv4();
-    const newSession = { id: newSessionId, conversations: [] };
-    
-    setSessions(prev => [...prev, newSession]);
-    setCurrentSessionId(newSessionId);
-    setCurrentConversation([]);
-    setShowInitialQuestions(true);
-    currentQuestionRef.current = "";
   };
 
   // Loading State Component
@@ -826,6 +948,64 @@ export default function ChatPage() {
     }
   };
 
+  const saveSessionsToDB = async (updatedSessions: Session[]) => {
+    if (!userId) {
+      console.log('No user ID available, skipping session save');
+      return;
+    }
+
+    // Validate and clean sessions data
+    const validSessions = updatedSessions.filter(session => 
+      session && 
+      session.id && 
+      Array.isArray(session.conversations) &&
+      session.conversations.every(conv => 
+        conv.question && 
+        conv.text && 
+        conv.timestamp
+      )
+    );
+
+    if (validSessions.length === 0) {
+      console.error('No valid sessions to save');
+      return;
+    }
+
+    try {
+      const currentSession = validSessions.find(s => s.id === currentSessionId);
+      if (!currentSession) {
+        console.error('Current session not found in valid sessions');
+        return;
+      }
+
+      const response = await axios.post('/api/set-session', { 
+        sessions: [currentSession] // Only save the current session
+      }, {
+        headers: {
+          'x-user-id': userId
+        }
+      });
+      
+      if (!response.data.success) {
+        throw new Error('Failed to save session');
+      }
+
+      // Update local state to match database
+      setSessions(validSessions);
+      
+    } catch (error) {
+      console.error('Failed to save sessions to database:', error);
+      setError('Failed to save chat history');
+    }
+  };
+
+  // Add recovery effect
+  useEffect(() => {
+    if (userId && (!sessions.length || !currentSessionId)) {
+      recoverState();
+    }
+  }, [userId, sessions.length, currentSessionId, recoverState]);
+
   // Main render
   return (
     <div className="flex flex-col min-h-screen bg-[#F8F9FA]">
@@ -837,6 +1017,7 @@ export default function ChatPage() {
               currentSessionId={currentSessionId}
               onSessionSelect={handleSessionSelect}
               onNewConversation={handleNewConversation}
+              userId={userId}
             />
             
             {(error || wsError) && (
@@ -967,6 +1148,17 @@ const SearchBar = ({
     }
   };
 
+  // Add button click handler
+  const handleButtonClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await onNewConversation();
+    } catch (error) {
+      console.error('Error creating new conversation:', error);
+    }
+  };
+
   return (
     <div className="flex flex-col p-2 items-center w-full">
       <div className={cn(
@@ -979,7 +1171,7 @@ const SearchBar = ({
           isLarge && "py-2"
         )}>
           <Button
-            onClick={onNewConversation}
+            onClick={handleButtonClick}
             variant="ghost"
             size="icon"
             className={cn(

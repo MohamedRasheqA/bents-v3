@@ -2,15 +2,33 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import { useAuth } from '@clerk/nextjs';
 
 // Types
 export interface Conversation {
   id: string;
   question: string;
   text: string;
+  initial_answer?: string;
+  videoLinks?: {
+    [key: string]: {
+      urls: string[];
+      timestamp: string;
+      video_title: string;
+      description: string;
+    };
+  };
+  related_products?: Array<{
+    id: string;
+    title: string;
+    link: string;
+    tags: string[];
+    description?: string;
+    price?: string;
+    category?: string;
+    image_data?: string;
+  }>;
   timestamp: string;
-  videoLinks?: any;
-  related_products?: any[];
 }
 
 export interface Session {
@@ -18,58 +36,72 @@ export interface Session {
   conversations: Conversation[];
 }
 
-export function useSession() {
+interface UseSessionReturn {
+  sessions: Session[];
+  setSessions: React.Dispatch<React.SetStateAction<Session[]>>;
+  currentSessionId: string | null;
+  setCurrentSessionId: React.Dispatch<React.SetStateAction<string | null>>;
+  isLoading: boolean;
+  error: string | null;
+}
+
+export function useSession(): UseSessionReturn {
+  const { userId } = useAuth();
   const [sessions, setSessions] = useState<Session[]>([]);
-  const [currentSessionId, setCurrentSessionId] = useState<string>('');
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Load sessions from database
-  const loadSessions = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const response = await axios.get('/api/session');
-      const savedSessions = response.data;
-      
-      if (Array.isArray(savedSessions) && savedSessions.length > 0) {
-        setSessions(savedSessions);
-        setCurrentSessionId(savedSessions[0].id);
+  useEffect(() => {
+    const loadSessions = async () => {
+      if (!userId) {
+        setIsLoading(false);
+        return;
       }
-    } catch (error) {
-      console.error('Error loading sessions:', error);
-      setError('Failed to load chat history');
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
-  // Save sessions to database
-  const saveSessions = useCallback(async (updatedSessions: Session[]) => {
-    try {
-      await axios.post('/api/session', {
-        sessionData: updatedSessions
-      });
-    } catch (error) {
-      console.error('Error saving sessions:', error);
-      setError('Failed to save chat history');
-    }
-  }, []);
+      try {
+        const response = await axios.get('/api/get-session', {
+          headers: {
+            'x-user-id': userId
+          }
+        });
+        const savedSessions = response.data;
 
-  // Initialize sessions
-  useEffect(() => {
+        if (Array.isArray(savedSessions) && savedSessions.length > 0) {
+          setSessions(savedSessions);
+          // Don't set currentSessionId here - let the page create a new one
+        }
+      } catch (error) {
+        console.error('Error loading sessions:', error);
+        setError('Failed to load chat history');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
     loadSessions();
-  }, [loadSessions]);
+  }, [userId]);
 
-  // Debounced save effect
-  useEffect(() => {
-    if (sessions.length > 0) {
-      const timeoutId = setTimeout(() => {
-        saveSessions(sessions);
-      }, 1000);
-      
-      return () => clearTimeout(timeoutId);
+  const updateSessions = useCallback(async (newSessions: Session[]) => {
+    if (!userId || !Array.isArray(newSessions)) return;
+
+    const validSessions = newSessions.filter(session => 
+      session && session.id && Array.isArray(session.conversations)
+    );
+
+    if (validSessions.length > 0) {
+      setSessions(validSessions);
+      try {
+        await axios.post('/api/set-session', 
+          { sessions: validSessions },
+          { headers: { 'x-user-id': userId } }
+        );
+      } catch (error) {
+        console.error('Failed to update sessions:', error);
+        setError('Failed to save chat history');
+      }
     }
-  }, [sessions, saveSessions]);
+  }, [userId]);
 
   return {
     sessions,
@@ -77,8 +109,6 @@ export function useSession() {
     currentSessionId,
     setCurrentSessionId,
     isLoading,
-    error,
-    saveSessions,
-    loadSessions
+    error
   };
 } 
