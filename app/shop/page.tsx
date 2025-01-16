@@ -15,6 +15,8 @@ import {
 } from '@/components/ui/select';
 import { Loader2, ExternalLink, Search } from 'lucide-react';
 import Header from '@/components/Header';
+import { useSession } from '@/lib/hooks/useSession';
+import { useAuth } from '@clerk/nextjs';
 
 // Types
 interface Product {
@@ -74,6 +76,24 @@ function ProductCard({ product }: ProductCardProps) {
 
 // Main Page Component
 export default function ShopPage() {
+  const { userId = null } = useAuth();
+  const {
+    sessions,
+    currentSessionId,
+    setCurrentSessionId,
+    setSessions
+  } = useSession();
+
+  const handleNewConversation = () => {
+    const newSession = { id: crypto.randomUUID(), conversations: [] };
+    setSessions(prev => [...prev, newSession]);
+    setCurrentSessionId(newSession.id);
+  };
+
+  const handleSessionSelect = (sessionId: string) => {
+    setCurrentSessionId(sessionId);
+  };
+
   const [products, setProducts] = useState<Product[]>([]);
   const [groupedProducts, setGroupedProducts] = useState<GroupedProducts>({});
   const [loading, setLoading] = useState(true);
@@ -142,7 +162,13 @@ export default function ShopPage() {
 
   return (
     <>
-      <Header />
+      <Header 
+        sessions={sessions}
+        currentSessionId={currentSessionId}
+        onSessionSelect={handleSessionSelect}
+        onNewConversation={handleNewConversation}
+        userId={userId}
+      />
       <div className="container mx-auto px-2 py-4 max-w-7xl mt-16">
         <header className="mb-8">
           <h1 className="text-xl md:text-2xl lg:text-3xl font-bold text-center mb-6">
