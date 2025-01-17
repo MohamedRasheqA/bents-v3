@@ -236,82 +236,87 @@ export async function POST(req: Request) {
         });
         return result.toDataStreamResponse();
       }
-
-
-    // Only proceed with DB search and links route for RELEVANT messages
-    console.log('⏳ [POST] Rewriting query');
-    const rewrittenQuery = await rewriteQuery(lastUserMessage, messages);
-    console.log('✅ [POST] Query rewritten:', { 
-      original: lastUserMessage, 
-      rewritten: rewrittenQuery 
-    });
-    
-    // Continue with existing embedding logic using rewrittenQuery
-    console.log('⏳ [POST] Generating embedding');
-    const { embedding } = await embed({
-      model: openai.embedding('text-embedding-ada-002'),
-      value: rewrittenQuery,
-      maxRetries: 2,
-      abortSignal: AbortSignal.timeout(5000)
-    });
-    console.log('✅ [POST] Embedding generated:', {
-      length: embedding.length
-    });
-    
-    // Before DB search
-    console.log('⏳ [POST] Searching database');
-    const similarDocs = await dbService.searchNeonDb(embedding, "bents", 5);
-    console.log('✅ [POST] Found similar documents:', {
-      count: similarDocs.length
-    });
-
-    const contextTexts = similarDocs.map(doc => 
-      `Source: ${doc.title}\nContent: ${doc.text}`
-    ).join('\n\n');
-
-    // Only make links request for RELEVANT messages that have context
-    if (relevanceResult === 'RELEVANT' && contextTexts) {
-      console.log('📤 [Chat] Sending data to links route:', {
-        messagesCount: messages.length,
-        contextLength: contextTexts.length,
-        rewrittenQuery
-      });
-
-      const linksResponse = await fetch(new URL('/api/links', req.url), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          context: contextTexts,
-          query: rewrittenQuery
-        })
-      });
-
-      const linksData = await linksResponse.json();
-      console.log('📥 [Chat] Received response from links route:', {
-        status: linksResponse.status,
-        hasVideoRefs: Boolean(linksData?.videoReferences),
-        hasProducts: Boolean(linksData?.relatedProducts)
-      });
     }
 
-    // Before final stream
-    console.log('⏳ [POST] Streaming response');
-    const result = await streamText({
-      model: openai('gpt-4o-mini'),
-      messages: [
-        { role: "system", 
-          content: SYSTEM_INSTRUCTIONS 
-        },
-        { 
-          role: "user", 
-          content: `Chat History:\n${JSON.stringify(chatHistory.slice(-5))}\n\nContext:\n${contextTexts}\n\nQuestion: ${lastUserMessage}` 
-        }
-      ],
-    });
-    console.log('✅ [POST] Response streamed');
-    return result.toDataStreamResponse();
+    // Only proceed with DB search and links route for RELEVANT messages
+    try {
+      console.log('⏳ [POST] Rewriting query');
+      const rewrittenQuery = await rewriteQuery(lastUserMessage, messages);
+      console.log('✅ [POST] Query rewritten:', { 
+        original: lastUserMessage, 
+        rewritten: rewrittenQuery 
+      });
+      
+      // Continue with existing embedding logic using rewrittenQuery
+      console.log('⏳ [POST] Generating embedding');
+      const { embedding } = await embed({
+        model: openai.embedding('text-embedding-ada-002'),
+        value: rewrittenQuery,
+        maxRetries: 2,
+        abortSignal: AbortSignal.timeout(5000)
+      });
+      console.log('✅ [POST] Embedding generated:', {
+        length: embedding.length
+      });
+      
+      // Before DB search
+      console.log('⏳ [POST] Searching database');
+      const similarDocs = await dbService.searchNeonDb(embedding, "bents", 5);
+      console.log('✅ [POST] Found similar documents:', {
+        count: similarDocs.length
+      });
+
+      const contextTexts = similarDocs.map(doc => 
+        `Source: ${doc.title}\nContent: ${doc.text}`
+      ).join('\n\n');
+
+      // Only make links request for RELEVANT messages that have context
+      if (relevanceResult === 'RELEVANT' && contextTexts) {
+        console.log('📤 [Chat] Sending data to links route:', {
+          messagesCount: messages.length,
+          contextLength: contextTexts.length,
+          rewrittenQuery
+        });
+
+        const linksResponse = await fetch(new URL('/api/links', req.url), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            context: contextTexts,
+            query: rewrittenQuery
+          })
+        });
+
+        const linksData = await linksResponse.json();
+        console.log('📥 [Chat] Received response from links route:', {
+          status: linksResponse.status,
+          hasVideoRefs: Boolean(linksData?.videoReferences),
+          hasProducts: Boolean(linksData?.relatedProducts)
+        });
+      }
+
+      // Before final stream
+      console.log('⏳ [POST] Streaming response');
+      const result = await streamText({
+        model: openai('gpt-4o-mini'),
+        messages: [
+          { role: "system", content: SYSTEM_INSTRUCTIONS },
+          { 
+            role: "user", 
+            content: `Chat History:\n${JSON.stringify(chatHistory.slice(-5))}\n\nContext:\n${contextTexts}\n\nQuestion: ${lastUserMessage}` 
+          }
+        ],
+      });
+      console.log('✅ [POST] Response streamed');
+      return result.toDataStreamResponse();
+    } catch (error) {
+      console.error('❌ [POST] Error in RELEVANT processing:', {
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      throw error; // This will be caught by the outer try-catch
+    }
 
   } catch (error) {
     console.error('❌ [POST] Error:', {
