@@ -220,7 +220,7 @@ export async function POST(req: Request) {
         return result.toDataStreamResponse();
       }
 
-     if (relevanceResult === 'NOT_RELEVANT') {
+      if (relevanceResult === 'NOT_RELEVANT') {
         const result = await streamText({
           model: openai('gpt-4o-mini'),
           messages: [
