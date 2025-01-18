@@ -141,12 +141,7 @@ export default function Section1({ onStartChatting, isSignedIn }: Section1Props)
     setFormMessage({ type: '', content: '' });
 
     try {
-      const response = await axios.post('https://bents-backend-server.vercel.app/contact', formData, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'application/json'
-        }
-      });
+      const response = await axios.post('/api/contact', formData);
       setFormMessage({ type: 'success', content: response.data.message });
       setFormData({ name: '', email: '', subject: '', message: '' });
     } catch (error: any) {
